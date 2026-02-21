@@ -5,12 +5,10 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
 
 data class BottomNavItem(
     val route: String,
@@ -20,8 +18,8 @@ data class BottomNavItem(
 
 val bottomNavItems = listOf(
     BottomNavItem(Routes.HOME, "首页", Icons.Default.Home),
-    BottomNavItem(Routes.ASSET, "资产", Icons.Default.AccountBalance),
     BottomNavItem(Routes.STATISTICS, "统计", Icons.Default.PieChart),
+    BottomNavItem(Routes.ASSET, "资产", Icons.Default.AccountBalance),
     BottomNavItem(Routes.SETTINGS, "设置", Icons.Default.Settings)
 )
 
@@ -30,13 +28,21 @@ fun BottomNavBar(
     currentRoute: String?,
     onNavigate: (String) -> Unit
 ) {
-    NavigationBar {
+    NavigationBar(
+        tonalElevation = 0.dp,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
         bottomNavItems.forEach { item ->
             NavigationBarItem(
                 selected = currentRoute == item.route,
                 onClick = { onNavigate(item.route) },
                 icon = { Icon(item.icon, contentDescription = item.label) },
-                label = { Text(item.label) }
+                label = { Text(item.label, style = MaterialTheme.typography.labelSmall) },
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                    indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                )
             )
         }
     }

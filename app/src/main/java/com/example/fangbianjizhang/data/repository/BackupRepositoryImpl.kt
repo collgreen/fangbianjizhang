@@ -5,6 +5,7 @@ import android.net.Uri
 import com.example.fangbianjizhang.data.local.db.dao.*
 import com.example.fangbianjizhang.data.local.db.entity.*
 import com.example.fangbianjizhang.domain.repository.BackupRepository
+import com.example.fangbianjizhang.domain.repository.ImportConflict
 import com.example.fangbianjizhang.domain.repository.ImportSummary
 import com.example.fangbianjizhang.util.AmountFormatter
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -36,13 +37,30 @@ class BackupRepositoryImpl @Inject constructor(
                 ?: error("无法打开输出文件")
         }
 
-    override suspend fun importJson(inputUri: Uri, password: String?): Result<ImportSummary> =
+    override suspend fun checkImportConflicts(inputUri: Uri, password: String?): Result<ImportConflict> =
         runCatching {
-            val bytes = context.contentResolver.openInputStream(inputUri)?.use { it.readBytes() }
-                ?: error("无法打开输入文件")
-            val json = if (password != null) decrypt(bytes, password) else String(bytes)
-            parseAndImport(JSONObject(json))
+            val root = readJson(inputUri, password)
+            val names = mutableListOf<String>()
+            val accounts = root.optJSONArray("accounts")
+            if (accounts != null) for (i in 0 until accounts.length()) {
+                val name = accounts.getJSONObject(i).getString("name")
+                if (accountDao.getByName(name) != null) names.add(name)
+            }
+            ImportConflict(names)
         }
+
+    override suspend fun importJson(inputUri: Uri, password: String?, overwriteAccounts: Boolean): Result<ImportSummary> =
+        runCatching {
+            val root = readJson(inputUri, password)
+            parseAndImport(root, overwriteAccounts)
+        }
+
+    private fun readJson(uri: Uri, password: String?): JSONObject {
+        val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            ?: error("无法打开输入文件")
+        val json = if (password != null) decrypt(bytes, password) else String(bytes)
+        return JSONObject(json)
+    }
 
     override suspend fun exportCsv(outputUri: Uri, start: Long, end: Long): Result<Unit> =
         runCatching {
@@ -162,27 +180,21 @@ class BackupRepositoryImpl @Inject constructor(
         return arr
     }
 
-    private suspend fun parseAndImport(root: JSONObject): ImportSummary {
+    private suspend fun parseAndImport(root: JSONObject, overwrite: Boolean): ImportSummary {
         val now = System.currentTimeMillis()
         var acctCount = 0; var catCount = 0; var txnCount = 0
+        var budgetCount = 0; var recurringCount = 0
 
         val accounts = root.optJSONArray("accounts")
         if (accounts != null) for (i in 0 until accounts.length()) {
             val o = accounts.getJSONObject(i)
-            accountDao.insert(AccountEntity(
-                name = o.getString("name"), type = o.getString("type"),
-                subType = o.getString("sub_type"), balance = o.getLong("balance"),
-                totalLimit = o.optLongNull("total_limit"),
-                usedAmount = o.optLongNull("used_amount"),
-                totalLoan = o.optLongNull("total_loan"),
-                alreadyPaid = o.optLongNull("already_paid"),
-                monthlyPayment = o.optLongNull("monthly_payment"),
-                billDay = o.optIntNull("bill_day"),
-                repaymentDay = o.optIntNull("repayment_day"),
-                icon = o.getString("icon"), sortOrder = o.optInt("sort_order", 0),
-                includeInTotal = o.optBoolean("include_in_total", true),
-                createdAt = now, updatedAt = now
-            ))
+            val entity = parseAccountJson(o, now)
+            val existing = accountDao.getByName(entity.name)
+            if (existing != null && overwrite) {
+                accountDao.update(entity.copy(id = existing.id))
+            } else if (existing == null) {
+                accountDao.insert(entity)
+            }
             acctCount++
         }
 
@@ -217,8 +229,53 @@ class BackupRepositoryImpl @Inject constructor(
             txnCount++
         }
 
-        return ImportSummary(acctCount, catCount, txnCount)
+        val budgets = root.optJSONArray("budgets")
+        if (budgets != null) for (i in 0 until budgets.length()) {
+            val o = budgets.getJSONObject(i)
+            budgetDao.insert(BudgetEntity(
+                categoryId = o.optLongNull("category_id"),
+                amount = o.getLong("amount"),
+                yearMonth = o.getString("year_month"),
+                createdAt = now, updatedAt = now
+            ))
+            budgetCount++
+        }
+
+        val recurring = root.optJSONArray("recurring_templates")
+        if (recurring != null) for (i in 0 until recurring.length()) {
+            val o = recurring.getJSONObject(i)
+            recurringDao.insert(RecurringEntity(
+                name = o.getString("name"), amount = o.getLong("amount"),
+                frequency = o.getString("frequency"),
+                dayOfMonth = o.optIntNull("day_of_month"),
+                dayOfWeek = o.optIntNull("day_of_week"),
+                intervalDays = o.optIntNull("interval_days"),
+                sourceAccountId = o.getLong("source_account_id"),
+                targetAccountId = o.getLong("target_account_id"),
+                nextDueDate = o.getLong("next_due_date"),
+                isEnabled = o.optBoolean("is_enabled", true),
+                createdAt = now, updatedAt = now
+            ))
+            recurringCount++
+        }
+
+        return ImportSummary(acctCount, catCount, txnCount, budgetCount, recurringCount)
     }
+
+    private fun parseAccountJson(o: JSONObject, now: Long) = AccountEntity(
+        name = o.getString("name"), type = o.getString("type"),
+        subType = o.getString("sub_type"), balance = o.getLong("balance"),
+        totalLimit = o.optLongNull("total_limit"),
+        usedAmount = o.optLongNull("used_amount"),
+        totalLoan = o.optLongNull("total_loan"),
+        alreadyPaid = o.optLongNull("already_paid"),
+        monthlyPayment = o.optLongNull("monthly_payment"),
+        billDay = o.optIntNull("bill_day"),
+        repaymentDay = o.optIntNull("repayment_day"),
+        icon = o.getString("icon"), sortOrder = o.optInt("sort_order", 0),
+        includeInTotal = o.optBoolean("include_in_total", true),
+        createdAt = now, updatedAt = now
+    )
 
     private fun JSONObject.optLongNull(key: String): Long? =
         if (isNull(key)) null else optLong(key)

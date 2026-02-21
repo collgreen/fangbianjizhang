@@ -6,6 +6,7 @@ import com.example.fangbianjizhang.domain.model.Transaction
 import com.example.fangbianjizhang.domain.model.TransactionType
 import com.example.fangbianjizhang.domain.repository.AccountRepository
 import com.example.fangbianjizhang.domain.repository.TransactionRepository
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 
 class InsertTransactionUseCase @Inject constructor(
@@ -18,12 +19,20 @@ class InsertTransactionUseCase @Inject constructor(
     }
 
     private suspend fun applyBalanceChange(t: Transaction) {
+        val account = accountRepo.getById(t.accountId).first()
         when (t.type) {
             TransactionType.EXPENSE -> {
-                accountRepo.updateBalance(t.accountId, -t.amount)
+                when (account?.type) {
+                    AccountType.CREDIT -> accountRepo.updateUsedAmount(t.accountId, t.amount)
+                    else -> accountRepo.updateBalance(t.accountId, -t.amount)
+                }
             }
             TransactionType.INCOME -> {
-                accountRepo.updateBalance(t.accountId, t.amount)
+                when (account?.type) {
+                    AccountType.CREDIT -> accountRepo.updateUsedAmount(t.accountId, -t.amount)
+                    AccountType.LOAN -> accountRepo.updateAlreadyPaid(t.accountId, t.amount)
+                    else -> accountRepo.updateBalance(t.accountId, t.amount)
+                }
             }
             TransactionType.TRANSFER -> {
                 accountRepo.updateBalance(t.accountId, -t.amount - t.fee)

@@ -12,10 +12,10 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 
 private val pieColors = listOf(
-    Color(0xFF1976D2), Color(0xFF4CAF50), Color(0xFFF44336),
-    Color(0xFFFF9800), Color(0xFF9C27B0), Color(0xFF00BCD4),
-    Color(0xFF795548), Color(0xFFE91E63), Color(0xFF3F51B5),
-    Color(0xFF009688)
+    Color(0xFF2DB84D), Color(0xFFE8453C), Color(0xFFF5A623),
+    Color(0xFF5B8DEF), Color(0xFF9B59B6), Color(0xFF1ABC9C),
+    Color(0xFFE67E22), Color(0xFFE84393), Color(0xFF00B894),
+    Color(0xFF6C5CE7)
 )
 
 @Composable

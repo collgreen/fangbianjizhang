@@ -9,6 +9,7 @@ class SeedDatabaseCallback : RoomDatabase.Callback() {
         val now = System.currentTimeMillis()
         seedExpenseCategories(db, now)
         seedIncomeCategories(db, now)
+        seedAccounts(db, now)
     }
 
     private fun seedExpenseCategories(db: SupportSQLiteDatabase, now: Long) {
@@ -53,6 +54,21 @@ class SeedDatabaseCallback : RoomDatabase.Callback() {
                     arrayOf(child, parentId, icon, j, now)
                 )
             }
+        }
+    }
+
+    private fun seedAccounts(db: SupportSQLiteDatabase, now: Long) {
+        val accounts = listOf(
+            arrayOf("现金", "FUND", "BANK_CARD", "💵", 0),
+            arrayOf("微信", "FUND", "WECHAT", "💬", 1),
+            arrayOf("支付宝", "FUND", "ALIPAY", "💙", 2),
+            arrayOf("银行卡", "FUND", "BANK_CARD", "💳", 3),
+        )
+        accounts.forEach { (name, type, subType, icon, order) ->
+            db.execSQL(
+                "INSERT INTO accounts (name, type, sub_type, balance, icon, sort_order, include_in_total, is_deleted, created_at, updated_at) VALUES (?, ?, ?, 0, ?, ?, 1, 0, ?, ?)",
+                arrayOf(name, type, subType, icon, order, now, now)
+            )
         }
     }
 

@@ -9,4 +9,5 @@ object Routes {
     const val CATEGORY_MANAGE = "category_manage"
     const val BUDGET_SETTING = "budget_setting"
     const val RECURRING_MANAGE = "recurring_manage"
+    const val ACCOUNT_MANAGE = "account_manage"
 }

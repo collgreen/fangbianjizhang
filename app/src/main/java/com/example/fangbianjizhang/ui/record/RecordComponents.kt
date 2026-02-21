@@ -6,10 +6,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -37,13 +40,13 @@ fun TypeTabs(current: TransactionType, onSelect: (TransactionType) -> Unit) {
 @Composable
 fun AmountDisplay(amount: String) {
     Box(
-        Modifier.fillMaxWidth().padding(24.dp),
+        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
         contentAlignment = Alignment.CenterEnd
     ) {
         Text(
             text = "¥ ${amount.ifEmpty { "0.00" }}",
-            fontSize = 32.sp,
-            style = MaterialTheme.typography.headlineMedium
+            style = MaterialTheme.typography.headlineLarge,
+            fontWeight = FontWeight.Bold
         )
     }
 }
@@ -61,15 +64,22 @@ fun CategoryGrid(state: RecordUiState, vm: RecordViewModel) {
                 Box(
                     Modifier
                         .padding(4.dp)
+                        .clip(RoundedCornerShape(8.dp))
                         .background(
                             if (selected) MaterialTheme.colorScheme.primaryContainer
-                            else MaterialTheme.colorScheme.surface
+                            else MaterialTheme.colorScheme.surfaceContainerLow
                         )
                         .clickable { vm.selectCategory(cat.id) }
-                        .padding(8.dp),
+                        .padding(vertical = 10.dp, horizontal = 4.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(cat.name, fontSize = 12.sp, textAlign = TextAlign.Center)
+                    Text(
+                        cat.name,
+                        style = MaterialTheme.typography.labelMedium,
+                        textAlign = TextAlign.Center,
+                        color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer
+                               else MaterialTheme.colorScheme.onSurface
+                    )
                 }
             }
         }
@@ -94,7 +104,8 @@ fun CategoryGrid(state: RecordUiState, vm: RecordViewModel) {
 @Composable
 fun AccountSelector(state: RecordUiState, vm: RecordViewModel) {
     Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Text("账户", style = MaterialTheme.typography.bodySmall)
+        Text("账户", style = MaterialTheme.typography.labelMedium)
+        Spacer(Modifier.height(4.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             state.accounts.forEach { acc ->
                 FilterChip(
@@ -106,7 +117,7 @@ fun AccountSelector(state: RecordUiState, vm: RecordViewModel) {
         }
         if (state.type == TransactionType.TRANSFER) {
             Spacer(Modifier.height(8.dp))
-            Text("目标账户", style = MaterialTheme.typography.bodySmall)
+            Text("目标账户", style = MaterialTheme.typography.labelMedium)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 state.accounts.filter { it.id != state.accountId }.forEach { acc ->
                     FilterChip(
@@ -127,6 +138,7 @@ fun NoteField(note: String, onNoteChange: (String) -> Unit) {
         onValueChange = onNoteChange,
         label = { Text("备注") },
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-        singleLine = true
+        singleLine = true,
+        shape = RoundedCornerShape(10.dp)
     )
 }

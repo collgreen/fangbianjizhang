@@ -2,12 +2,14 @@ package com.example.fangbianjizhang.ui.statistics
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -64,16 +66,16 @@ private fun SummaryRow(state: StatisticsUiState) {
     Card(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("收入", style = MaterialTheme.typography.bodySmall)
-                Text(AmountFormatter.toDisplayWithSymbol(state.totalIncome), color = IncomeGreen)
+                Text("收入", style = MaterialTheme.typography.labelMedium)
+                Text(AmountFormatter.toDisplayWithSymbol(state.totalIncome), color = IncomeGreen, fontWeight = FontWeight.SemiBold)
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("支出", style = MaterialTheme.typography.bodySmall)
-                Text(AmountFormatter.toDisplayWithSymbol(state.totalExpense), color = ExpenseRed)
+                Text("支出", style = MaterialTheme.typography.labelMedium)
+                Text(AmountFormatter.toDisplayWithSymbol(state.totalExpense), color = ExpenseRed, fontWeight = FontWeight.SemiBold)
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("结余", style = MaterialTheme.typography.bodySmall)
-                Text(AmountFormatter.toDisplayWithSymbol(balance))
+                Text("结余", style = MaterialTheme.typography.labelMedium)
+                Text(AmountFormatter.toDisplayWithSymbol(balance), fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -92,9 +94,9 @@ private fun TypeToggle(showExpense: Boolean, onToggle: () -> Unit) {
 private fun CategoryRanking(state: StatisticsUiState) {
     val total = state.categoryStats.sumOf { it.total }
     Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp)) {
-            Text("分类排行", style = MaterialTheme.typography.bodyLarge)
-            Spacer(Modifier.height(8.dp))
+        Column(Modifier.padding(14.dp)) {
+            Text("分类排行", style = MaterialTheme.typography.titleSmall)
+            Spacer(Modifier.height(10.dp))
             if (state.categoryStats.isEmpty()) {
                 Text("暂无数据", style = MaterialTheme.typography.bodySmall)
             }
@@ -104,12 +106,15 @@ private fun CategoryRanking(state: StatisticsUiState) {
                     Modifier.fillMaxWidth().padding(vertical = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("${i + 1}. ${cat.category_name}")
-                    Text("${AmountFormatter.toDisplayWithSymbol(cat.total)}  ${String.format("%.0f%%", pct)}")
+                    Text("${i + 1}. ${cat.category_name}", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        "${AmountFormatter.toDisplayWithSymbol(cat.total)}  ${String.format("%.0f%%", pct)}",
+                        style = MaterialTheme.typography.titleSmall
+                    )
                 }
                 LinearProgressIndicator(
                     progress = { (pct / 100f).coerceIn(0f, 1f) },
-                    modifier = Modifier.fillMaxWidth().height(4.dp)
+                    modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp))
                 )
             }
         }

@@ -39,6 +39,9 @@ interface AccountDao {
     @Query("SELECT * FROM accounts WHERE is_deleted = 0")
     suspend fun getAllActiveList(): List<AccountEntity>
 
+    @Query("SELECT * FROM accounts WHERE name = :name AND is_deleted = 0 LIMIT 1")
+    suspend fun getByName(name: String): AccountEntity?
+
     @Query("SELECT COALESCE(SUM(balance), 0) FROM accounts WHERE type = 'FUND' AND is_deleted = 0 AND include_in_total = 1")
     fun getFundTotal(): Flow<Long>
 

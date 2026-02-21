@@ -48,12 +48,38 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    private val _importConflict = MutableStateFlow<Pair<Uri, List<String>>?>(null)
+    val importConflict: StateFlow<Pair<Uri, List<String>>?> = _importConflict.asStateFlow()
+
     fun importJson(uri: Uri, onDone: (String) -> Unit) {
         viewModelScope.launch {
-            backupRepo.importJson(uri, null).fold(
-                onSuccess = { s -> onDone("导入成功: ${s.accountCount}账户, ${s.categoryCount}分类, ${s.transactionCount}笔交易") },
+            backupRepo.checkImportConflicts(uri, null).fold(
+                onSuccess = { conflict ->
+                    if (conflict.duplicateAccountNames.isNotEmpty()) {
+                        _importConflict.value = uri to conflict.duplicateAccountNames
+                    } else {
+                        doImport(uri, false, onDone)
+                    }
+                },
                 onFailure = { onDone("导入失败: ${it.message}") }
             )
         }
+    }
+
+    fun confirmOverwrite(onDone: (String) -> Unit) {
+        val (uri, _) = _importConflict.value ?: return
+        _importConflict.value = null
+        viewModelScope.launch { doImport(uri, true, onDone) }
+    }
+
+    fun cancelImport() { _importConflict.value = null }
+
+    private suspend fun doImport(uri: Uri, overwrite: Boolean, onDone: (String) -> Unit) {
+        backupRepo.importJson(uri, null, overwrite).fold(
+            onSuccess = { s ->
+                onDone("导入成功: ${s.accountCount}账户, ${s.categoryCount}分类, ${s.transactionCount}笔交易, ${s.budgetCount}预算, ${s.recurringCount}定期扣款")
+            },
+            onFailure = { onDone("导入失败: ${it.message}") }
+        )
     }
 }

@@ -1,10 +1,14 @@
 package com.example.fangbianjizhang.ui.navigation
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -16,11 +20,14 @@ import androidx.navigation.compose.rememberNavController
 import com.example.fangbianjizhang.ui.asset.AssetScreen
 import com.example.fangbianjizhang.ui.home.HomeScreen
 import com.example.fangbianjizhang.ui.record.RecordScreen
+import com.example.fangbianjizhang.ui.settings.AccountManageScreen
 import com.example.fangbianjizhang.ui.settings.BudgetSettingScreen
 import com.example.fangbianjizhang.ui.settings.CategoryManageScreen
 import com.example.fangbianjizhang.ui.settings.RecurringManageScreen
 import com.example.fangbianjizhang.ui.settings.SettingsScreen
 import com.example.fangbianjizhang.ui.statistics.StatisticsScreen
+
+private const val DURATION = 260
 
 @Composable
 fun AppNavHost() {
@@ -45,7 +52,10 @@ fun AppNavHost() {
         floatingActionButton = {
             if (showBottomBar) {
                 FloatingActionButton(
-                    onClick = { navController.navigate(Routes.RECORD) }
+                    onClick = { navController.navigate(Routes.RECORD) },
+                    shape = CircleShape,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
                 ) {
                     Icon(Icons.Default.Add, contentDescription = "记账")
                 }
@@ -55,7 +65,11 @@ fun AppNavHost() {
         NavHost(
             navController = navController,
             startDestination = Routes.HOME,
-            modifier = Modifier.padding(padding)
+            modifier = Modifier.padding(padding),
+            enterTransition = { fadeIn(tween(DURATION)) + slideInHorizontally(tween(DURATION)) { it / 5 } },
+            exitTransition = { fadeOut(tween(DURATION / 2)) },
+            popEnterTransition = { fadeIn(tween(DURATION)) + slideInHorizontally(tween(DURATION)) { -it / 5 } },
+            popExitTransition = { fadeOut(tween(DURATION / 2)) + slideOutHorizontally(tween(DURATION)) { it / 5 } }
         ) {
             composable(Routes.HOME) { HomeScreen() }
             composable(Routes.ASSET) { AssetScreen() }
@@ -65,6 +79,7 @@ fun AppNavHost() {
             composable(Routes.CATEGORY_MANAGE) { CategoryManageScreen(onBack = { navController.popBackStack() }) }
             composable(Routes.BUDGET_SETTING) { BudgetSettingScreen(onBack = { navController.popBackStack() }) }
             composable(Routes.RECURRING_MANAGE) { RecurringManageScreen(onBack = { navController.popBackStack() }) }
+            composable(Routes.ACCOUNT_MANAGE) { AccountManageScreen(onBack = { navController.popBackStack() }) }
         }
     }
 }

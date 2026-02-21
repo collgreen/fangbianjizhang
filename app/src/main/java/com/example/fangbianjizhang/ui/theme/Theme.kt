@@ -2,26 +2,46 @@ package com.example.fangbianjizhang.ui.theme
 
 import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 
 private val LightColors = lightColorScheme(
-    primary = PrimaryBlue,
-    onPrimary = androidx.compose.ui.graphics.Color.White,
-    surface = androidx.compose.ui.graphics.Color(0xFFFAFAFA),
-    surfaceVariant = androidx.compose.ui.graphics.Color.White
+    primary = PrimaryGreen,
+    onPrimary = OnPrimary,
+    primaryContainer = PrimaryContainer,
+    onPrimaryContainer = OnPrimaryContainer,
+    surface = SurfaceLight,
+    surfaceVariant = SurfaceVariantLight,
+    surfaceContainerLow = SurfaceContainerLight,
+    surfaceContainer = SurfaceContainerLight,
+    outline = OutlineLight,
+    error = ExpenseRed
 )
 
 private val DarkColors = darkColorScheme(
-    primary = PrimaryBlueDark,
-    surface = androidx.compose.ui.graphics.Color(0xFF121212),
-    surfaceVariant = androidx.compose.ui.graphics.Color(0xFF1E1E1E)
+    primary = PrimaryGreenDark,
+    onPrimary = Color(0xFF003919),
+    primaryContainer = PrimaryContainerDark,
+    onPrimaryContainer = OnPrimaryContainerDark,
+    surface = SurfaceDark,
+    surfaceVariant = SurfaceVariantDark,
+    surfaceContainerLow = SurfaceContainerDark,
+    surfaceContainer = SurfaceContainerDark,
+    outline = OutlineDark,
+    error = ExpenseRedDark
+)
+
+val AppShapes = Shapes(
+    small = RoundedCornerShape(8.dp),
+    medium = RoundedCornerShape(12.dp),
+    large = RoundedCornerShape(16.dp)
 )
 
 @Composable
@@ -44,6 +64,7 @@ fun FangbianTheme(
     MaterialTheme(
         colorScheme = colors,
         typography = AppTypography,
+        shapes = AppShapes,
         content = content
     )
 }

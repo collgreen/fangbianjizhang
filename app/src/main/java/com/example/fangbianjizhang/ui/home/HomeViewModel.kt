@@ -2,7 +2,9 @@ package com.example.fangbianjizhang.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.fangbianjizhang.domain.model.AccountType
 import com.example.fangbianjizhang.domain.model.BudgetMode
+import com.example.fangbianjizhang.domain.repository.AccountRepository
 import com.example.fangbianjizhang.domain.repository.BudgetRepository
 import com.example.fangbianjizhang.domain.repository.DailySummary
 import com.example.fangbianjizhang.domain.repository.TransactionRepository
@@ -20,9 +22,17 @@ data class BudgetStatus(
     val spent: Long = 0
 )
 
+data class RepaymentReminder(
+    val accountName: String,
+    val repaymentDay: Int,
+    val daysLeft: Int,
+    val isCredit: Boolean
+)
+
 data class HomeUiState(
     val budgetStatus: BudgetStatus = BudgetStatus(),
     val dailySummaries: List<DailySummary> = emptyList(),
+    val repaymentReminders: List<RepaymentReminder> = emptyList(),
     val isLoading: Boolean = true
 )
 
@@ -30,17 +40,20 @@ data class HomeUiState(
 class HomeViewModel @Inject constructor(
     private val transactionRepo: TransactionRepository,
     private val budgetRepo: BudgetRepository,
+    private val accountRepo: AccountRepository,
     private val transactionDao: TransactionDao,
     private val prefs: PreferencesManager
 ) : ViewModel() {
 
     val uiState: StateFlow<HomeUiState> = combine(
         transactionFlow(),
-        budgetFlow()
-    ) { summaries, budget ->
+        budgetFlow(),
+        repaymentFlow()
+    ) { summaries, budget, reminders ->
         HomeUiState(
             budgetStatus = budget,
             dailySummaries = summaries,
+            repaymentReminders = reminders,
             isLoading = false
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
@@ -49,6 +62,22 @@ class HomeViewModel @Inject constructor(
         val now = LocalDate.now()
         val (start, end) = DateUtils.monthRange(now.year, now.monthValue)
         return transactionRepo.getDailySummary(start, end)
+    }
+
+    private fun repaymentFlow(): Flow<List<RepaymentReminder>> {
+        return accountRepo.getAllActive().map { accounts ->
+            val today = LocalDate.now()
+            accounts.filter {
+                (it.type == AccountType.CREDIT || it.type == AccountType.LOAN) && it.repaymentDay != null
+            }.map { acc ->
+                val repayDay = acc.repaymentDay!!
+                val nextRepay = today.withDayOfMonth(repayDay).let {
+                    if (it.isBefore(today) || it.isEqual(today)) it.plusMonths(1) else it
+                }
+                val daysLeft = java.time.temporal.ChronoUnit.DAYS.between(today, nextRepay).toInt()
+                RepaymentReminder(acc.name, repayDay, daysLeft, acc.type == AccountType.CREDIT)
+            }.sortedBy { it.daysLeft }
+        }
     }
 
     private fun budgetFlow(): Flow<BudgetStatus> {

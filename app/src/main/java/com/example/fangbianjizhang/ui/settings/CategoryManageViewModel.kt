@@ -53,6 +53,37 @@ class CategoryManageViewModel @Inject constructor(
         }
     }
 
+    fun addSubCategory(parentId: Long, name: String) {
+        viewModelScope.launch {
+            val parent = _state.value.categories.firstOrNull { it.id == parentId } ?: return@launch
+            categoryRepo.insert(Category(
+                name = name,
+                type = _state.value.type,
+                parentId = parentId,
+                icon = parent.icon
+            ))
+            loadChildren(parentId)
+        }
+    }
+
+    fun renameCategory(id: Long, newName: String) {
+        viewModelScope.launch {
+            val cat = _state.value.categories.firstOrNull { it.id == id }
+                ?: _state.value.childrenMap.values.flatten().firstOrNull { it.id == id }
+                ?: return@launch
+            categoryRepo.update(cat.copy(name = newName))
+            cat.parentId?.let { loadChildren(it) }
+        }
+    }
+
+    fun deleteCategory(id: Long) {
+        viewModelScope.launch {
+            categoryRepo.softDelete(id)
+            val child = _state.value.childrenMap.values.flatten().firstOrNull { it.id == id }
+            child?.parentId?.let { loadChildren(it) }
+        }
+    }
+
     private fun loadCategories() {
         categoriesJob?.cancel()
         categoriesJob = viewModelScope.launch {
