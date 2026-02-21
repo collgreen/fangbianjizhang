@@ -2,8 +2,10 @@ package com.example.fangbianjizhang.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.fangbianjizhang.domain.model.Account
 import com.example.fangbianjizhang.domain.model.AccountType
 import com.example.fangbianjizhang.domain.model.BudgetMode
+import com.example.fangbianjizhang.domain.model.Transaction
 import com.example.fangbianjizhang.domain.repository.AccountRepository
 import com.example.fangbianjizhang.domain.repository.BudgetRepository
 import com.example.fangbianjizhang.domain.repository.DailySummary
@@ -13,6 +15,7 @@ import com.example.fangbianjizhang.data.local.db.dao.TransactionDao
 import com.example.fangbianjizhang.util.DateUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import javax.inject.Inject
 
@@ -33,6 +36,7 @@ data class HomeUiState(
     val budgetStatus: BudgetStatus = BudgetStatus(),
     val dailySummaries: List<DailySummary> = emptyList(),
     val repaymentReminders: List<RepaymentReminder> = emptyList(),
+    val accounts: List<Account> = emptyList(),
     val isLoading: Boolean = true
 )
 
@@ -48,15 +52,25 @@ class HomeViewModel @Inject constructor(
     val uiState: StateFlow<HomeUiState> = combine(
         transactionFlow(),
         budgetFlow(),
-        repaymentFlow()
-    ) { summaries, budget, reminders ->
+        repaymentFlow(),
+        accountRepo.getAllActive()
+    ) { summaries, budget, reminders, accounts ->
         HomeUiState(
             budgetStatus = budget,
             dailySummaries = summaries,
             repaymentReminders = reminders,
+            accounts = accounts,
             isLoading = false
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
+
+    fun updateTransaction(tx: Transaction) {
+        viewModelScope.launch { transactionRepo.update(tx) }
+    }
+
+    fun deleteTransaction(id: Long) {
+        viewModelScope.launch { transactionRepo.softDelete(id) }
+    }
 
     private fun transactionFlow(): Flow<List<DailySummary>> {
         val now = LocalDate.now()

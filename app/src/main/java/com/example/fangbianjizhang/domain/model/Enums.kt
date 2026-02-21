@@ -13,7 +13,10 @@ enum class AccountSubType {
     MORTGAGE, CAR_LOAN, CONSUMER_LOAN
 }
 
-enum class TransactionType { EXPENSE, INCOME, TRANSFER, LOAN_BORROW, LOAN_LEND }
+enum class TransactionType(val label: String) {
+    EXPENSE("支出"), INCOME("收入"), TRANSFER("转账"),
+    LOAN_BORROW("借入"), LOAN_LEND("借出")
+}
 
 enum class CategoryType { EXPENSE, INCOME }
 

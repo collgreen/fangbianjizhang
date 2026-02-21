@@ -5,6 +5,7 @@ data class Transaction(
     val type: TransactionType,
     val amount: Long,
     val categoryId: Long? = null,
+    val categoryName: String? = null,
     val accountId: Long,
     val targetAccountId: Long? = null,
     val fee: Long = 0,

@@ -185,39 +185,53 @@ class BackupRepositoryImpl @Inject constructor(
         var acctCount = 0; var catCount = 0; var txnCount = 0
         var budgetCount = 0; var recurringCount = 0
 
+        // old ID → new ID mappings
+        val acctIdMap = mutableMapOf<Long, Long>()
+        val catIdMap = mutableMapOf<Long, Long>()
+
         val accounts = root.optJSONArray("accounts")
         if (accounts != null) for (i in 0 until accounts.length()) {
             val o = accounts.getJSONObject(i)
+            val oldId = o.optLong("id", 0)
             val entity = parseAccountJson(o, now)
             val existing = accountDao.getByName(entity.name)
-            if (existing != null && overwrite) {
-                accountDao.update(entity.copy(id = existing.id))
-            } else if (existing == null) {
+            val newId = if (existing != null && overwrite) {
+                accountDao.update(entity.copy(id = existing.id)); existing.id
+            } else if (existing != null) {
+                existing.id
+            } else {
                 accountDao.insert(entity)
             }
+            if (oldId != 0L) acctIdMap[oldId] = newId
             acctCount++
         }
 
         val categories = root.optJSONArray("categories")
         if (categories != null) for (i in 0 until categories.length()) {
             val o = categories.getJSONObject(i)
-            categoryDao.insert(CategoryEntity(
+            val oldId = o.optLong("id", 0)
+            val oldParentId = o.optLongNull("parent_id")
+            val newId = categoryDao.insert(CategoryEntity(
                 name = o.getString("name"), type = o.getString("type"),
-                parentId = o.optLongNull("parent_id"),
+                parentId = oldParentId?.let { catIdMap[it] ?: it },
                 icon = o.getString("icon"), sortOrder = o.optInt("sort_order", 0),
                 isDefault = o.optBoolean("is_default", false), createdAt = now
             ))
+            if (oldId != 0L) catIdMap[oldId] = newId
             catCount++
         }
 
         val transactions = root.optJSONArray("transactions")
         if (transactions != null) for (i in 0 until transactions.length()) {
             val o = transactions.getJSONObject(i)
+            val oldAcctId = o.getLong("account_id")
+            val oldCatId = o.optLongNull("category_id")
+            val oldTargetId = o.optLongNull("target_account_id")
             transactionDao.insert(TransactionEntity(
                 type = o.getString("type"), amount = o.getLong("amount"),
-                categoryId = o.optLongNull("category_id"),
-                accountId = o.getLong("account_id"),
-                targetAccountId = o.optLongNull("target_account_id"),
+                categoryId = oldCatId?.let { catIdMap[it] ?: it },
+                accountId = acctIdMap[oldAcctId] ?: oldAcctId,
+                targetAccountId = oldTargetId?.let { acctIdMap[it] ?: it },
                 fee = o.optLong("fee", 0),
                 counterparty = o.optStringNull("counterparty"),
                 dueDate = o.optLongNull("due_date"),
@@ -232,8 +246,9 @@ class BackupRepositoryImpl @Inject constructor(
         val budgets = root.optJSONArray("budgets")
         if (budgets != null) for (i in 0 until budgets.length()) {
             val o = budgets.getJSONObject(i)
+            val oldCatId = o.optLongNull("category_id")
             budgetDao.insert(BudgetEntity(
-                categoryId = o.optLongNull("category_id"),
+                categoryId = oldCatId?.let { catIdMap[it] ?: it },
                 amount = o.getLong("amount"),
                 yearMonth = o.getString("year_month"),
                 createdAt = now, updatedAt = now
@@ -244,14 +259,16 @@ class BackupRepositoryImpl @Inject constructor(
         val recurring = root.optJSONArray("recurring_templates")
         if (recurring != null) for (i in 0 until recurring.length()) {
             val o = recurring.getJSONObject(i)
+            val oldSrc = o.getLong("source_account_id")
+            val oldTgt = o.getLong("target_account_id")
             recurringDao.insert(RecurringEntity(
                 name = o.getString("name"), amount = o.getLong("amount"),
                 frequency = o.getString("frequency"),
                 dayOfMonth = o.optIntNull("day_of_month"),
                 dayOfWeek = o.optIntNull("day_of_week"),
                 intervalDays = o.optIntNull("interval_days"),
-                sourceAccountId = o.getLong("source_account_id"),
-                targetAccountId = o.getLong("target_account_id"),
+                sourceAccountId = acctIdMap[oldSrc] ?: oldSrc,
+                targetAccountId = acctIdMap[oldTgt] ?: oldTgt,
                 nextDueDate = o.getLong("next_due_date"),
                 isEnabled = o.optBoolean("is_enabled", true),
                 createdAt = now, updatedAt = now

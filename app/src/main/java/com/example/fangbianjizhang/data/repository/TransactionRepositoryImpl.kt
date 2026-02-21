@@ -24,6 +24,7 @@ class TransactionRepositoryImpl @Inject constructor(
                     type = TransactionType.valueOf(twc.type),
                     amount = twc.amount,
                     categoryId = twc.category_id,
+                    categoryName = twc.category_name,
                     accountId = twc.account_id,
                     targetAccountId = twc.target_account_id,
                     fee = twc.fee,
