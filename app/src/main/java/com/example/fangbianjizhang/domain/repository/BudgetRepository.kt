@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.Flow
 interface BudgetRepository {
     fun getByYearMonth(yearMonth: String): Flow<List<Budget>>
     fun getTotalBudget(yearMonth: String): Flow<Budget?>
+    fun getCategoryBudgetSum(yearMonth: String): Flow<Long>
     suspend fun setTotalBudget(yearMonth: String, amount: Long)
     suspend fun setCategoryBudget(yearMonth: String, categoryId: Long, amount: Long)
     suspend fun clearByYearMonth(yearMonth: String)

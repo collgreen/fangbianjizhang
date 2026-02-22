@@ -14,6 +14,9 @@ interface BudgetDao {
     @Query("SELECT * FROM budgets WHERE year_month = :yearMonth AND category_id IS NULL LIMIT 1")
     fun getTotalBudget(yearMonth: String): Flow<BudgetEntity?>
 
+    @Query("SELECT COALESCE(SUM(amount), 0) FROM budgets WHERE year_month = :yearMonth AND category_id IS NOT NULL")
+    fun getCategoryBudgetSum(yearMonth: String): Flow<Long>
+
     @Query("SELECT * FROM budgets")
     suspend fun getAllList(): List<BudgetEntity>
 

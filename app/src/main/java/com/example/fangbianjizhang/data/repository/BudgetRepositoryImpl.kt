@@ -21,6 +21,9 @@ class BudgetRepositoryImpl @Inject constructor(
     override fun getTotalBudget(yearMonth: String): Flow<Budget?> =
         dao.getTotalBudget(yearMonth).map { it?.let { e -> Budget(e.id, e.categoryId, e.amount, e.yearMonth) } }
 
+    override fun getCategoryBudgetSum(yearMonth: String): Flow<Long> =
+        dao.getCategoryBudgetSum(yearMonth)
+
     override suspend fun setTotalBudget(yearMonth: String, amount: Long) {
         val now = System.currentTimeMillis()
         val existing = dao.getTotalBudget(yearMonth).first()

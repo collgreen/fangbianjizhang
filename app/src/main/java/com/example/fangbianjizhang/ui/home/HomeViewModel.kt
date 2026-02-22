@@ -104,12 +104,13 @@ class HomeViewModel @Inject constructor(
         return combine(
             prefs.budgetMode,
             budgetRepo.getTotalBudget(ym),
+            budgetRepo.getCategoryBudgetSum(ym),
             transactionDao.getTotalByType(start, end, "EXPENSE")
-        ) { mode, budget, spent ->
+        ) { mode, totalBudget, categorySum, spent ->
             when (mode) {
                 BudgetMode.NONE -> BudgetStatus()
-                BudgetMode.TOTAL -> BudgetStatus(mode, budget?.amount ?: 0, spent)
-                BudgetMode.PER_CATEGORY -> BudgetStatus(mode, budget?.amount ?: 0, spent)
+                BudgetMode.TOTAL -> BudgetStatus(mode, totalBudget?.amount ?: 0, spent)
+                BudgetMode.PER_CATEGORY -> BudgetStatus(mode, categorySum, spent)
             }
         }
     }
