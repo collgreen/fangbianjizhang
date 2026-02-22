@@ -77,22 +77,29 @@ class UpdateViewModel @Inject constructor(
     }
 
     private fun fetchLatest(): ReleaseInfo? {
-        val conn = URL(RELEASES_URL).openConnection() as HttpURLConnection
-        conn.connectTimeout = 10_000
-        conn.readTimeout = 10_000
-        return try {
-            val arr = JSONArray(conn.inputStream.bufferedReader().readText())
-            if (arr.length() == 0) return null
-            val rel = arr.getJSONObject(0)
-            val tag = rel.getString("tag_name").removePrefix("v")
-            val assets = rel.optJSONArray("assets")
-            val apkUrl = if (assets != null && assets.length() > 0) {
-                assets.getJSONObject(0).getString("browser_download_url")
-            } else null
-            ReleaseInfo(tag, apkUrl)
-        } finally {
-            conn.disconnect()
+        val urls = PROXIES.map { it + GITHUB_RELEASES } + GITHUB_RELEASES
+        for (apiUrl in urls) {
+            try {
+                val conn = URL(apiUrl).openConnection() as HttpURLConnection
+                conn.connectTimeout = 8_000
+                conn.readTimeout = 8_000
+                val arr = JSONArray(conn.inputStream.bufferedReader().use { it.readText() })
+                conn.disconnect()
+                if (arr.length() == 0) return null
+                val rel = arr.getJSONObject(0)
+                val tag = rel.getString("tag_name").removePrefix("v")
+                val assets = rel.optJSONArray("assets")
+                val apkUrl = if (assets != null && assets.length() > 0) {
+                    val raw = assets.getJSONObject(0).getString("browser_download_url")
+                    val proxy = PROXIES.firstOrNull { apiUrl.startsWith(it) }
+                    if (proxy != null) proxy + raw else raw
+                } else null
+                return ReleaseInfo(tag, apkUrl)
+            } catch (_: Exception) {
+                continue
+            }
         }
+        return null
     }
 
     private fun downloadApk(url: String): File {
@@ -136,7 +143,8 @@ class UpdateViewModel @Inject constructor(
     private data class ReleaseInfo(val version: String, val apkUrl: String?)
 
     companion object {
-        private const val RELEASES_URL =
+        private const val GITHUB_RELEASES =
             "https://api.github.com/repos/collgreen/fangbianjizhang/releases"
+        private val PROXIES = listOf("https://ghfast.top/", "https://gh-proxy.com/")
     }
 }

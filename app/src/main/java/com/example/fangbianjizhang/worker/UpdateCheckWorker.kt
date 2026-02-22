@@ -37,8 +37,7 @@ class UpdateCheckWorker @AssistedInject constructor(
     }
 
     private fun fetchLatestVersion(): ReleaseInfo? {
-        // Try proxy first for China users, fallback to direct GitHub API
-        val urls = listOf(PROXY_RELEASES_URL, RELEASES_URL)
+        val urls = PROXIES.map { it + GITHUB_RELEASES } + RELEASES_URL
         for (apiUrl in urls) {
             try {
                 val conn = URL(apiUrl).openConnection() as HttpURLConnection
@@ -53,8 +52,8 @@ class UpdateCheckWorker @AssistedInject constructor(
                 val assets = release.optJSONArray("assets")
                 val apkUrl = if (assets != null && assets.length() > 0) {
                     val raw = assets.getJSONObject(0).getString("browser_download_url")
-                    // Use proxy for download URL too
-                    DOWNLOAD_PROXY + raw
+                    val proxy = PROXIES.firstOrNull { apiUrl.startsWith(it) }
+                    if (proxy != null) proxy + raw else raw
                 } else null
                 return ReleaseInfo(tag, apkUrl)
             } catch (_: Exception) {
@@ -96,10 +95,9 @@ class UpdateCheckWorker @AssistedInject constructor(
         const val WORK_NAME = "update_check"
         private const val CHANNEL_ID = "update_channel"
         private const val NOTIFICATION_ID = 1002
-        private const val RELEASES_URL =
+        private const val GITHUB_RELEASES =
             "https://api.github.com/repos/collgreen/fangbianjizhang/releases"
-        private const val PROXY_RELEASES_URL =
-            "https://ghproxy.com/https://api.github.com/repos/collgreen/fangbianjizhang/releases"
-        private const val DOWNLOAD_PROXY = "https://ghproxy.com/"
+        private val PROXIES = listOf("https://ghfast.top/", "https://gh-proxy.com/")
+        private const val RELEASES_URL = GITHUB_RELEASES
     }
 }
