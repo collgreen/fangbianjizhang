@@ -1,5 +1,6 @@
 package com.example.fangbianjizhang.ui.record
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.fangbianjizhang.domain.model.Account
@@ -9,6 +10,7 @@ import com.example.fangbianjizhang.domain.model.Transaction
 import com.example.fangbianjizhang.domain.model.TransactionType
 import com.example.fangbianjizhang.domain.repository.AccountRepository
 import com.example.fangbianjizhang.domain.repository.CategoryRepository
+import com.example.fangbianjizhang.domain.repository.TransactionRepository
 import com.example.fangbianjizhang.domain.usecase.transaction.InsertTransactionUseCase
 import com.example.fangbianjizhang.util.AmountFormatter
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -31,14 +33,17 @@ data class RecordUiState(
     val subCategories: List<Category> = emptyList(),
     val accounts: List<Account> = emptyList(),
     val isSaving: Boolean = false,
-    val saved: Boolean = false
+    val saved: Boolean = false,
+    val isEditMode: Boolean = false
 )
 
 @HiltViewModel
 class RecordViewModel @Inject constructor(
     private val insertTransaction: InsertTransactionUseCase,
     private val categoryRepo: CategoryRepository,
-    private val accountRepo: AccountRepository
+    private val accountRepo: AccountRepository,
+    private val transactionRepo: TransactionRepository,
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(RecordUiState())
@@ -46,9 +51,69 @@ class RecordViewModel @Inject constructor(
     private var childrenJob: Job? = null
     private var categoriesJob: Job? = null
 
+    private val editTransactionId: Long? = savedStateHandle.get<Long>("transactionId")
+
     init {
         loadAccounts()
-        loadCategories()
+        if (editTransactionId != null && editTransactionId > 0) {
+            loadTransaction(editTransactionId)
+        } else {
+            loadCategories()
+        }
+    }
+
+    private fun loadTransaction(id: Long) {
+        viewModelScope.launch {
+            transactionRepo.getById(id).first()?.let { tx ->
+                _state.value = _state.value.copy(
+                    isEditMode = true,
+                    type = tx.type,
+                    amount = AmountFormatter.toDisplay(tx.amount),
+                    categoryId = tx.categoryId,
+                    accountId = tx.accountId,
+                    targetAccountId = tx.targetAccountId,
+                    note = tx.note ?: "",
+                    date = tx.transactionDate,
+                    counterparty = tx.counterparty ?: ""
+                )
+                loadCategories()
+                // Load sub-categories if category has a parent
+                tx.categoryId?.let { catId ->
+                    categoryRepo.getChildren(catId).first().let { children ->
+                        if (children.isNotEmpty()) {
+                            // catId is a parent, load its children
+                            _state.value = _state.value.copy(subCategories = children)
+                        } else {
+                            // catId might be a child, find its parent
+                            val allCats = _state.value.categories
+                            val parentCat = allCats.find { it.id == catId }
+                            if (parentCat == null) {
+                                // catId is a sub-category, find parent
+                                val catType = when (tx.type) {
+                                    TransactionType.EXPENSE -> CategoryType.EXPENSE
+                                    TransactionType.INCOME -> CategoryType.INCOME
+                                    else -> null
+                                }
+                                if (catType != null) {
+                                    categoryRepo.getByType(catType).first().let { allByType ->
+                                        val subCat = allByType.find { it.id == catId }
+                                        if (subCat?.parentId != null) {
+                                            _state.value = _state.value.copy(
+                                                categoryId = subCat.parentId,
+                                                subCategoryId = catId
+                                            )
+                                            categoryRepo.getChildren(subCat.parentId).first().let { subs ->
+                                                _state.value = _state.value.copy(subCategories = subs)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private fun loadAccounts() {
@@ -136,18 +201,34 @@ class RecordViewModel @Inject constructor(
         viewModelScope.launch {
             val amountFen = AmountFormatter.toLong(s.amount)
             val catId = s.subCategoryId ?: s.categoryId
-            insertTransaction(
-                Transaction(
-                    type = s.type,
-                    amount = amountFen,
-                    categoryId = catId,
-                    accountId = s.accountId,
-                    targetAccountId = s.targetAccountId,
-                    note = s.note.ifBlank { null },
-                    counterparty = s.counterparty.ifBlank { null },
-                    transactionDate = s.date
+            if (s.isEditMode && editTransactionId != null) {
+                transactionRepo.update(
+                    Transaction(
+                        id = editTransactionId,
+                        type = s.type,
+                        amount = amountFen,
+                        categoryId = catId,
+                        accountId = s.accountId,
+                        targetAccountId = s.targetAccountId,
+                        note = s.note.ifBlank { null },
+                        counterparty = s.counterparty.ifBlank { null },
+                        transactionDate = s.date
+                    )
                 )
-            )
+            } else {
+                insertTransaction(
+                    Transaction(
+                        type = s.type,
+                        amount = amountFen,
+                        categoryId = catId,
+                        accountId = s.accountId,
+                        targetAccountId = s.targetAccountId,
+                        note = s.note.ifBlank { null },
+                        counterparty = s.counterparty.ifBlank { null },
+                        transactionDate = s.date
+                    )
+                )
+            }
             _state.value = _state.value.copy(isSaving = false, saved = true)
         }
     }

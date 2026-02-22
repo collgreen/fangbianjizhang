@@ -9,10 +9,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -22,7 +20,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.fangbianjizhang.domain.model.Account
 import com.example.fangbianjizhang.domain.model.BudgetMode
 import com.example.fangbianjizhang.domain.model.Transaction
 import com.example.fangbianjizhang.domain.model.TransactionType
@@ -57,26 +54,18 @@ private val mottoList = listOf(
 )
 
 @Composable
-fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
+fun HomeScreen(
+    onEditTransaction: (Long) -> Unit = {},
+    viewModel: HomeViewModel = hiltViewModel()
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val motto = remember { mottoList.random() }
-    var editingTx by remember { mutableStateOf<Transaction?>(null) }
 
     if (state.isLoading) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
         }
         return
-    }
-
-    editingTx?.let { tx ->
-        EditTransactionDialog(
-            tx = tx,
-            accounts = state.accounts,
-            onDismiss = { editingTx = null },
-            onSave = { viewModel.updateTransaction(it); editingTx = null },
-            onDelete = { viewModel.deleteTransaction(it); editingTx = null }
-        )
     }
 
     LazyColumn(
@@ -92,9 +81,18 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
         }
 
         state.dailySummaries.forEach { summary ->
-            item { DayHeader(summary) }
-            items(summary.transactions) { tx ->
-                TransactionItem(tx) { editingTx = tx }
+            item {
+                Card(
+                    Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column {
+                        DayHeader(summary)
+                        summary.transactions.forEach { tx ->
+                            TransactionItem(tx) { onEditTransaction(tx.id) }
+                        }
+                    }
+                }
             }
         }
 
@@ -203,12 +201,21 @@ private fun RepaymentSection(reminders: List<RepaymentReminder>) {
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
-                    Text(
-                        "${r.daysLeft}天后",
-                        color = if (r.daysLeft <= 3) ExpenseRed else MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            "${r.daysLeft}天后",
+                            color = if (r.daysLeft <= 3) ExpenseRed else MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        if (r.amount > 0) {
+                            Text(
+                                "需还 ${AmountFormatter.toDisplayWithSymbol(r.amount)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = ExpenseRed
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -246,112 +253,3 @@ private fun TransactionItem(tx: Transaction, onClick: () -> Unit) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun EditTransactionDialog(
-    tx: Transaction,
-    accounts: List<Account>,
-    onDismiss: () -> Unit,
-    onSave: (Transaction) -> Unit,
-    onDelete: (Long) -> Unit
-) {
-    var amountText by remember { mutableStateOf(AmountFormatter.toDisplay(tx.amount)) }
-    var note by remember { mutableStateOf(tx.note ?: "") }
-    var selectedAccountId by remember { mutableLongStateOf(tx.accountId) }
-    var showDeleteConfirm by remember { mutableStateOf(false) }
-    var accountExpanded by remember { mutableStateOf(false) }
-
-    val selectedAccount = accounts.find { it.id == selectedAccountId }
-
-    if (showDeleteConfirm) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("确认删除") },
-            text = { Text("删除后无法恢复，确定要删除这条记录吗？") },
-            confirmButton = {
-                TextButton(onClick = { onDelete(tx.id) }) {
-                    Text("删除", color = ExpenseRed)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) { Text("取消") }
-            }
-        )
-        return
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("编辑明细") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("类型：${tx.type.label}", style = MaterialTheme.typography.bodyMedium)
-
-                OutlinedTextField(
-                    value = amountText,
-                    onValueChange = { amountText = it },
-                    label = { Text("金额") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                OutlinedTextField(
-                    value = note,
-                    onValueChange = { note = it },
-                    label = { Text("备注") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                ExposedDropdownMenuBox(
-                    expanded = accountExpanded,
-                    onExpandedChange = { accountExpanded = it }
-                ) {
-                    OutlinedTextField(
-                        value = selectedAccount?.name ?: "",
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("账户") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(accountExpanded) },
-                        modifier = Modifier.menuAnchor().fillMaxWidth()
-                    )
-                    ExposedDropdownMenu(
-                        expanded = accountExpanded,
-                        onDismissRequest = { accountExpanded = false }
-                    ) {
-                        accounts.forEach { acc ->
-                            DropdownMenuItem(
-                                text = { Text(acc.name) },
-                                onClick = {
-                                    selectedAccountId = acc.id
-                                    accountExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                val newAmount = AmountFormatter.toLong(amountText)
-                if (newAmount > 0) {
-                    onSave(tx.copy(
-                        amount = newAmount,
-                        note = note.ifBlank { null },
-                        accountId = selectedAccountId
-                    ))
-                }
-            }) { Text("保存") }
-        },
-        dismissButton = {
-            Row {
-                TextButton(onClick = { showDeleteConfirm = true }) {
-                    Text("删除", color = ExpenseRed)
-                }
-                TextButton(onClick = onDismiss) { Text("取消") }
-            }
-        }
-    )
-}

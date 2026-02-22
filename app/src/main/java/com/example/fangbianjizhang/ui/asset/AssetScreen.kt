@@ -6,21 +6,25 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.fangbianjizhang.domain.model.Account
+import com.example.fangbianjizhang.domain.model.AccountType
 import com.example.fangbianjizhang.ui.theme.ExpenseRed
 import com.example.fangbianjizhang.util.AmountFormatter
 
 @Composable
 fun AssetScreen(viewModel: AssetViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    var editingAccount by remember { mutableStateOf<Account?>(null) }
 
     if (state.isLoading) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -29,16 +33,28 @@ fun AssetScreen(viewModel: AssetViewModel = hiltViewModel()) {
         return
     }
 
+    editingAccount?.let { acc ->
+        EditBalanceDialog(
+            account = acc,
+            onDismiss = { editingAccount = null },
+            onSave = { newVal ->
+                if (acc.type == AccountType.CREDIT) viewModel.setUsedAmount(acc, newVal)
+                else viewModel.setBalance(acc, newVal)
+                editingAccount = null
+            }
+        )
+    }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item { NetAssetHeader(state) }
-        item { AccountGroup("资金账户", state.fundAccounts) { FundAccountItem(it) } }
-        item { AccountGroup("信用账户", state.creditAccounts) { CreditAccountItem(it) } }
-        item { AccountGroup("投资账户", state.investmentAccounts) { FundAccountItem(it) } }
-        item { AccountGroup("贷款账户", state.loanAccounts) { LoanAccountItem(it) } }
+        item { AccountGroup("资金账户", state.fundAccounts) { FundAccountItem(it) { editingAccount = it } } }
+        item { AccountGroup("信用账户", state.creditAccounts) { CreditAccountItem(it) { editingAccount = it } } }
+        item { AccountGroup("投资账户", state.investmentAccounts) { FundAccountItem(it) { editingAccount = it } } }
+        item { AccountGroup("贷款账户", state.loanAccounts) { LoanAccountItem(it) { editingAccount = it } } }
     }
 }
 
@@ -108,9 +124,9 @@ private fun <T : Account> AccountGroup(
 }
 
 @Composable
-private fun FundAccountItem(account: Account) {
+private fun FundAccountItem(account: Account, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -123,15 +139,19 @@ private fun FundAccountItem(account: Account) {
 }
 
 @Composable
-private fun CreditAccountItem(account: Account) {
-    val available = (account.totalLimit ?: 0) - (account.usedAmount ?: 0)
-    Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp)) {
+private fun CreditAccountItem(account: Account, onClick: () -> Unit) {
+    val used = account.usedAmount ?: 0
+    val available = (account.totalLimit ?: 0) - used
+    Column(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 10.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(account.icon, Modifier.padding(end = 8.dp))
                 Text(account.name, style = MaterialTheme.typography.bodyLarge)
             }
-            Text("可用 ${AmountFormatter.toDisplayWithSymbol(available)}", style = MaterialTheme.typography.titleSmall)
+            Column(horizontalAlignment = Alignment.End) {
+                Text("已用 ${AmountFormatter.toDisplayWithSymbol(used)}", style = MaterialTheme.typography.titleSmall, color = ExpenseRed)
+                Text("可用 ${AmountFormatter.toDisplayWithSymbol(available)}", style = MaterialTheme.typography.bodySmall)
+            }
         }
         if (account.billDay != null && account.repaymentDay != null) {
             Text(
@@ -144,9 +164,9 @@ private fun CreditAccountItem(account: Account) {
 }
 
 @Composable
-private fun LoanAccountItem(account: Account) {
+private fun LoanAccountItem(account: Account, onClick: () -> Unit) {
     val remaining = (account.totalLoan ?: 0) - (account.alreadyPaid ?: 0)
-    Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp)) {
+    Column(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 10.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(account.icon, Modifier.padding(end = 8.dp))
@@ -162,4 +182,40 @@ private fun LoanAccountItem(account: Account) {
             )
         }
     }
+}
+
+@Composable
+private fun EditBalanceDialog(
+    account: Account,
+    onDismiss: () -> Unit,
+    onSave: (Long) -> Unit
+) {
+    val isCredit = account.type == AccountType.CREDIT
+    val label = if (isCredit) "已用额度" else "余额"
+    val initVal = if (isCredit) account.usedAmount ?: 0 else account.balance
+    var text by remember { mutableStateOf(AmountFormatter.toDisplay(initVal)) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("修改${account.name}的$label") },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                label = { Text(label) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val v = AmountFormatter.toLong(text)
+                if (v >= 0) onSave(v)
+            }) { Text("保存") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        }
+    )
 }

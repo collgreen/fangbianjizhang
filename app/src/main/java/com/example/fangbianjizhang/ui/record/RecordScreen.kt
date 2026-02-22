@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
@@ -30,10 +32,10 @@ fun RecordScreen(
         if (state.saved) onBack()
     }
 
-    Column(Modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize().navigationBarsPadding()) {
         // Top bar
         TopAppBar(
-            title = {},
+            title = { if (state.isEditMode) Text("编辑明细") },
             navigationIcon = {
                 IconButton(onClick = onBack) {
                     Icon(Icons.Default.Close, "关闭")
@@ -47,26 +49,20 @@ fun RecordScreen(
             }
         )
 
-        // Type tabs
-        TypeTabs(state.type, viewModel::setType)
-
-        // Amount display
-        AmountDisplay(state.amount)
-
-        // Category grid (hide for transfer)
-        if (state.type != TransactionType.TRANSFER) {
-            CategoryGrid(state, viewModel)
+        // Scrollable content area
+        Column(
+            Modifier.weight(1f).verticalScroll(rememberScrollState())
+        ) {
+            TypeTabs(state.type, viewModel::setType)
+            AmountDisplay(state.amount)
+            if (state.type != TransactionType.TRANSFER) {
+                CategoryGrid(state, viewModel)
+            }
+            AccountSelector(state, viewModel)
+            NoteField(state.note, viewModel::setNote)
         }
 
-        // Account selector
-        AccountSelector(state, viewModel)
-
-        // Note field
-        NoteField(state.note, viewModel::setNote)
-
-        Spacer(Modifier.weight(1f))
-
-        // Number pad
+        // Number pad fixed at bottom
         NumberPad(viewModel)
     }
 }

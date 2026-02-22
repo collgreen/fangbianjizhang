@@ -37,24 +37,31 @@ class UpdateCheckWorker @AssistedInject constructor(
     }
 
     private fun fetchLatestVersion(): ReleaseInfo? {
-        val url = URL(RELEASES_URL)
-        val conn = url.openConnection() as HttpURLConnection
-        conn.connectTimeout = 10_000
-        conn.readTimeout = 10_000
-        return try {
-            val json = conn.inputStream.bufferedReader().readText()
-            val arr = JSONArray(json)
-            if (arr.length() == 0) return null
-            val release = arr.getJSONObject(0)
-            val tag = release.getString("tag_name").removePrefix("v")
-            val assets = release.optJSONArray("assets")
-            val apkUrl = if (assets != null && assets.length() > 0) {
-                assets.getJSONObject(0).getString("browser_download_url")
-            } else null
-            ReleaseInfo(tag, apkUrl)
-        } finally {
-            conn.disconnect()
+        // Try proxy first for China users, fallback to direct GitHub API
+        val urls = listOf(PROXY_RELEASES_URL, RELEASES_URL)
+        for (apiUrl in urls) {
+            try {
+                val conn = URL(apiUrl).openConnection() as HttpURLConnection
+                conn.connectTimeout = 8_000
+                conn.readTimeout = 8_000
+                val json = conn.inputStream.bufferedReader().use { it.readText() }
+                conn.disconnect()
+                val arr = JSONArray(json)
+                if (arr.length() == 0) return null
+                val release = arr.getJSONObject(0)
+                val tag = release.getString("tag_name").removePrefix("v")
+                val assets = release.optJSONArray("assets")
+                val apkUrl = if (assets != null && assets.length() > 0) {
+                    val raw = assets.getJSONObject(0).getString("browser_download_url")
+                    // Use proxy for download URL too
+                    DOWNLOAD_PROXY + raw
+                } else null
+                return ReleaseInfo(tag, apkUrl)
+            } catch (_: Exception) {
+                continue
+            }
         }
+        return null
     }
 
     private fun showUpdateNotification(version: String, downloadUrl: String?) {
@@ -91,5 +98,8 @@ class UpdateCheckWorker @AssistedInject constructor(
         private const val NOTIFICATION_ID = 1002
         private const val RELEASES_URL =
             "https://api.github.com/repos/collgreen/fangbianjizhang/releases"
+        private const val PROXY_RELEASES_URL =
+            "https://ghproxy.com/https://api.github.com/repos/collgreen/fangbianjizhang/releases"
+        private const val DOWNLOAD_PROXY = "https://ghproxy.com/"
     }
 }

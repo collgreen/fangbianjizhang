@@ -29,7 +29,8 @@ data class RepaymentReminder(
     val accountName: String,
     val repaymentDay: Int,
     val daysLeft: Int,
-    val isCredit: Boolean
+    val isCredit: Boolean,
+    val amount: Long = 0
 )
 
 data class HomeUiState(
@@ -89,7 +90,9 @@ class HomeViewModel @Inject constructor(
                     if (it.isBefore(today) || it.isEqual(today)) it.plusMonths(1) else it
                 }
                 val daysLeft = java.time.temporal.ChronoUnit.DAYS.between(today, nextRepay).toInt()
-                RepaymentReminder(acc.name, repayDay, daysLeft, acc.type == AccountType.CREDIT)
+                val amount = if (acc.type == AccountType.CREDIT) acc.usedAmount ?: 0
+                    else acc.monthlyPayment ?: 0
+                RepaymentReminder(acc.name, repayDay, daysLeft, acc.type == AccountType.CREDIT, amount)
             }.sortedBy { it.daysLeft }
         }
     }

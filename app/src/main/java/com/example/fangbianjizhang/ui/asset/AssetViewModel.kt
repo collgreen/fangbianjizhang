@@ -8,6 +8,7 @@ import com.example.fangbianjizhang.domain.repository.AccountRepository
 import com.example.fangbianjizhang.domain.repository.NetAsset
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class AssetUiState(
@@ -33,4 +34,16 @@ class AssetViewModel @Inject constructor(
     ) { net, fund, credit, invest, loan ->
         AssetUiState(net, fund, credit, invest, loan, isLoading = false)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AssetUiState())
+
+    fun setBalance(account: Account, newBalance: Long) {
+        viewModelScope.launch {
+            accountRepo.update(account.copy(balance = newBalance))
+        }
+    }
+
+    fun setUsedAmount(account: Account, newUsed: Long) {
+        viewModelScope.launch {
+            accountRepo.update(account.copy(usedAmount = newUsed))
+        }
+    }
 }

@@ -2,10 +2,12 @@ package com.example.fangbianjizhang.ui.record
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -86,7 +88,7 @@ fun CategoryGrid(state: RecordUiState, vm: RecordViewModel) {
         // Sub-categories row
         if (state.subCategories.isNotEmpty()) {
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 state.subCategories.forEach { sub ->
@@ -106,7 +108,10 @@ fun AccountSelector(state: RecordUiState, vm: RecordViewModel) {
     Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
         Text("账户", style = MaterialTheme.typography.labelMedium)
         Spacer(Modifier.height(4.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             state.accounts.forEach { acc ->
                 FilterChip(
                     selected = acc.id == state.accountId,
@@ -118,7 +123,10 @@ fun AccountSelector(state: RecordUiState, vm: RecordViewModel) {
         if (state.type == TransactionType.TRANSFER) {
             Spacer(Modifier.height(8.dp))
             Text("目标账户", style = MaterialTheme.typography.labelMedium)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 state.accounts.filter { it.id != state.accountId }.forEach { acc ->
                     FilterChip(
                         selected = acc.id == state.targetAccountId,

@@ -13,10 +13,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.fangbianjizhang.ui.asset.AssetScreen
 import com.example.fangbianjizhang.ui.home.HomeScreen
 import com.example.fangbianjizhang.ui.record.RecordScreen
@@ -71,11 +73,19 @@ fun AppNavHost() {
             popEnterTransition = { fadeIn(tween(DURATION)) + slideInHorizontally(tween(DURATION)) { -it / 5 } },
             popExitTransition = { fadeOut(tween(DURATION / 2)) + slideOutHorizontally(tween(DURATION)) { it / 5 } }
         ) {
-            composable(Routes.HOME) { HomeScreen() }
+            composable(Routes.HOME) {
+                HomeScreen(onEditTransaction = { txId ->
+                    navController.navigate(Routes.recordEdit(txId))
+                })
+            }
             composable(Routes.ASSET) { AssetScreen() }
             composable(Routes.STATISTICS) { StatisticsScreen() }
             composable(Routes.SETTINGS) { SettingsScreen(navController) }
             composable(Routes.RECORD) { RecordScreen(onBack = { navController.popBackStack() }) }
+            composable(
+                Routes.RECORD_EDIT,
+                arguments = listOf(navArgument("transactionId") { type = NavType.LongType })
+            ) { RecordScreen(onBack = { navController.popBackStack() }) }
             composable(Routes.CATEGORY_MANAGE) { CategoryManageScreen(onBack = { navController.popBackStack() }) }
             composable(Routes.BUDGET_SETTING) { BudgetSettingScreen(onBack = { navController.popBackStack() }) }
             composable(Routes.RECURRING_MANAGE) { RecurringManageScreen(onBack = { navController.popBackStack() }) }

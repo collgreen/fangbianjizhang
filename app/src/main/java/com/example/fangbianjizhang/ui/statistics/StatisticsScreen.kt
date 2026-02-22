@@ -39,7 +39,10 @@ fun StatisticsScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
         if (state.categoryStats.isNotEmpty()) {
             item {
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    PieChart(slices = state.categoryStats.map { it.total.toFloat() })
+                    PieChart(
+                        slices = state.categoryStats.map { it.total.toFloat() },
+                        labels = state.categoryStats.map { it.category_name }
+                    )
                 }
             }
         }
