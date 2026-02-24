@@ -74,9 +74,14 @@ fun AppNavHost() {
             popExitTransition = { fadeOut(tween(DURATION / 2)) + slideOutHorizontally(tween(DURATION)) { it / 5 } }
         ) {
             composable(Routes.HOME) {
-                HomeScreen(onEditTransaction = { txId ->
-                    navController.navigate(Routes.recordEdit(txId))
-                })
+                HomeScreen(
+                    onEditTransaction = { txId ->
+                        navController.navigate(Routes.recordEdit(txId))
+                    },
+                    onSetBudget = {
+                        navController.navigate(Routes.BUDGET_SETTING)
+                    }
+                )
             }
             composable(Routes.ASSET) { AssetScreen() }
             composable(Routes.STATISTICS) { StatisticsScreen() }

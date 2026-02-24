@@ -56,6 +56,7 @@ private val mottoList = listOf(
 @Composable
 fun HomeScreen(
     onEditTransaction: (Long) -> Unit = {},
+    onSetBudget: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -74,7 +75,7 @@ fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item { MottoCard(motto) }
-        item { BudgetCard(state.budgetStatus) }
+        item { BudgetCard(state.budgetStatus, onSetBudget) }
 
         if (state.repaymentReminders.isNotEmpty()) {
             item { RepaymentSection(state.repaymentReminders) }
@@ -122,15 +123,18 @@ private fun MottoCard(motto: String) {
 }
 
 @Composable
-private fun BudgetCard(budget: BudgetStatus) {
+private fun BudgetCard(budget: BudgetStatus, onSetBudget: () -> Unit = {}) {
     if (budget.mode == BudgetMode.NONE) {
-        Card(
-            Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+        Button(
+            onClick = onSetBudget,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            )
         ) {
-            Box(Modifier.padding(16.dp)) {
-                Text("点击设置预算", color = MaterialTheme.colorScheme.onPrimaryContainer)
-            }
+            Text("设置预算", modifier = Modifier.padding(vertical = 4.dp))
         }
         return
     }

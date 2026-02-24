@@ -12,6 +12,7 @@ import com.example.fangbianjizhang.domain.repository.AccountRepository
 import com.example.fangbianjizhang.domain.repository.CategoryRepository
 import com.example.fangbianjizhang.domain.repository.TransactionRepository
 import com.example.fangbianjizhang.domain.usecase.transaction.InsertTransactionUseCase
+import com.example.fangbianjizhang.domain.usecase.transaction.UpdateTransactionUseCase
 import com.example.fangbianjizhang.util.AmountFormatter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -40,6 +41,7 @@ data class RecordUiState(
 @HiltViewModel
 class RecordViewModel @Inject constructor(
     private val insertTransaction: InsertTransactionUseCase,
+    private val updateTransaction: UpdateTransactionUseCase,
     private val categoryRepo: CategoryRepository,
     private val accountRepo: AccountRepository,
     private val transactionRepo: TransactionRepository,
@@ -202,7 +204,7 @@ class RecordViewModel @Inject constructor(
             val amountFen = AmountFormatter.toLong(s.amount)
             val catId = s.subCategoryId ?: s.categoryId
             if (s.isEditMode && editTransactionId != null) {
-                transactionRepo.update(
+                updateTransaction(
                     Transaction(
                         id = editTransactionId,
                         type = s.type,
