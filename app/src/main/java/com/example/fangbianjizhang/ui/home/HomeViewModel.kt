@@ -14,6 +14,7 @@ import com.example.fangbianjizhang.data.local.datastore.PreferencesManager
 import com.example.fangbianjizhang.data.local.db.dao.TransactionDao
 import com.example.fangbianjizhang.util.DateUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -34,13 +35,18 @@ data class RepaymentReminder(
 )
 
 data class HomeUiState(
+    val year: Int = LocalDate.now().year,
+    val month: Int = LocalDate.now().monthValue,
     val budgetStatus: BudgetStatus = BudgetStatus(),
     val dailySummaries: List<DailySummary> = emptyList(),
     val repaymentReminders: List<RepaymentReminder> = emptyList(),
     val accounts: List<Account> = emptyList(),
+    val monthlyExpense: Long = 0,
+    val monthlyIncome: Long = 0,
     val isLoading: Boolean = true
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val transactionRepo: TransactionRepository,
@@ -50,20 +56,51 @@ class HomeViewModel @Inject constructor(
     private val prefs: PreferencesManager
 ) : ViewModel() {
 
+    private val _year = MutableStateFlow(LocalDate.now().year)
+    private val _month = MutableStateFlow(LocalDate.now().monthValue)
+
     val uiState: StateFlow<HomeUiState> = combine(
-        transactionFlow(),
-        budgetFlow(),
-        repaymentFlow(),
-        accountRepo.getAllActive()
-    ) { summaries, budget, reminders, accounts ->
-        HomeUiState(
-            budgetStatus = budget,
-            dailySummaries = summaries,
-            repaymentReminders = reminders,
-            accounts = accounts,
-            isLoading = false
-        )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
+        _year, _month
+    ) { y, m -> y to m }
+        .flatMapLatest { (y, m) ->
+            val (start, end) = DateUtils.monthRange(y, m)
+            val ym = String.format("%d-%02d", y, m)
+            combine(
+                transactionRepo.getDailySummary(start, end),
+                budgetFlow(ym, start, end),
+                repaymentFlow(),
+                accountRepo.getAllActive(),
+                combine(
+                    transactionDao.getTotalByType(start, end, "EXPENSE"),
+                    transactionDao.getTotalByType(start, end, "INCOME")
+                ) { exp, inc -> exp to inc }
+            ) { summaries, budget, reminders, accounts, totals ->
+                HomeUiState(
+                    year = y,
+                    month = m,
+                    budgetStatus = budget,
+                    dailySummaries = summaries,
+                    repaymentReminders = reminders,
+                    accounts = accounts,
+                    monthlyExpense = totals.first,
+                    monthlyIncome = totals.second,
+                    isLoading = false
+                )
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
+
+    fun prevMonth() {
+        if (_month.value == 1) { _year.value--; _month.value = 12 }
+        else _month.value--
+    }
+
+    fun nextMonth() {
+        val now = LocalDate.now()
+        if (_year.value > now.year || (_year.value == now.year && _month.value >= now.monthValue)) return
+        if (_month.value == 12) { _year.value++; _month.value = 1 }
+        else _month.value++
+    }
 
     fun updateTransaction(tx: Transaction) {
         viewModelScope.launch { transactionRepo.update(tx) }
@@ -71,12 +108,6 @@ class HomeViewModel @Inject constructor(
 
     fun deleteTransaction(id: Long) {
         viewModelScope.launch { transactionRepo.softDelete(id) }
-    }
-
-    private fun transactionFlow(): Flow<List<DailySummary>> {
-        val now = LocalDate.now()
-        val (start, end) = DateUtils.monthRange(now.year, now.monthValue)
-        return transactionRepo.getDailySummary(start, end)
     }
 
     private fun repaymentFlow(): Flow<List<RepaymentReminder>> {
@@ -97,10 +128,7 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private fun budgetFlow(): Flow<BudgetStatus> {
-        val ym = DateUtils.currentYearMonth()
-        val now = LocalDate.now()
-        val (start, end) = DateUtils.monthRange(now.year, now.monthValue)
+    private fun budgetFlow(ym: String, start: Long, end: Long): Flow<BudgetStatus> {
         return combine(
             prefs.budgetMode,
             budgetRepo.getTotalBudget(ym),

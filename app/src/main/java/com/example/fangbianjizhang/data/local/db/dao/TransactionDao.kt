@@ -77,6 +77,20 @@ interface TransactionDao {
     """)
     fun getCategoryStats(start: Long, end: Long, type: String): Flow<List<CategoryTotal>>
 
+    @Query("""
+        SELECT c.id AS category_id, c.name AS category_name,
+               c.icon AS category_icon, SUM(t.amount) AS total
+        FROM transactions t
+        JOIN categories c ON t.category_id = c.id
+        WHERE t.is_deleted = 0
+          AND t.type = :type
+          AND t.transaction_date BETWEEN :start AND :end
+          AND c.parent_id = :parentId
+        GROUP BY c.id
+        ORDER BY total DESC
+    """)
+    fun getSubCategoryStats(start: Long, end: Long, type: String, parentId: Long): Flow<List<CategoryTotal>>
+
     @Query("SELECT * FROM transactions WHERE is_deleted = 0 ORDER BY transaction_date DESC")
     suspend fun getAllActiveList(): List<TransactionEntity>
 

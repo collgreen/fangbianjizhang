@@ -14,14 +14,14 @@ android {
         applicationId = "com.example.fangbianjizhang"
         minSdk = 26
         targetSdk = 35
-        versionCode = 6
-        versionName = "1.4.3"
+        versionCode = 7
+        versionName = "1.5.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {
         create("release") {
-            storeFile = file(System.getenv("KEYSTORE_PATH") ?: "release.keystore")
+            storeFile = file(System.getenv("KEYSTORE_PATH") ?: "../release.keystore")
             storePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
             keyAlias = System.getenv("KEY_ALIAS") ?: ""
             keyPassword = System.getenv("KEY_PASSWORD") ?: ""

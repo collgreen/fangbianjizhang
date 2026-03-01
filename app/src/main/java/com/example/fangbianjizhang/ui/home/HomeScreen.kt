@@ -74,7 +74,9 @@ fun HomeScreen(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        item { MonthSelector(state, viewModel) }
         item { MottoCard(motto) }
+        item { MonthlySummaryCard(state) }
         item { BudgetCard(state.budgetStatus, onSetBudget) }
 
         if (state.repaymentReminders.isNotEmpty()) {
@@ -120,6 +122,56 @@ private fun MottoCard(motto: String) {
         textAlign = TextAlign.Center,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)
     )
+}
+
+@Composable
+private fun MonthSelector(state: HomeUiState, vm: HomeViewModel) {
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        TextButton(onClick = { vm.prevMonth() }) { Text("◀") }
+        Text("${state.year}年${state.month}月", style = MaterialTheme.typography.headlineMedium)
+        TextButton(onClick = { vm.nextMonth() }) { Text("▶") }
+    }
+}
+
+@Composable
+private fun MonthlySummaryCard(state: HomeUiState) {
+    Card(Modifier.fillMaxWidth()) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("本月支出", style = MaterialTheme.typography.labelMedium)
+                Text(
+                    AmountFormatter.toDisplayWithSymbol(state.monthlyExpense),
+                    color = ExpenseRed,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("本月收入", style = MaterialTheme.typography.labelMedium)
+                Text(
+                    AmountFormatter.toDisplayWithSymbol(state.monthlyIncome),
+                    color = IncomeGreen,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("结余", style = MaterialTheme.typography.labelMedium)
+                Text(
+                    AmountFormatter.toDisplayWithSymbol(state.monthlyIncome - state.monthlyExpense),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+    }
 }
 
 @Composable

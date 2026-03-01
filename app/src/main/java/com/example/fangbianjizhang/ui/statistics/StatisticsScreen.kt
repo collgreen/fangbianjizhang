@@ -1,8 +1,15 @@
 package com.example.fangbianjizhang.ui.statistics
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -13,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.fangbianjizhang.data.local.db.dao.CategoryTotal
 import com.example.fangbianjizhang.ui.theme.ExpenseRed
 import com.example.fangbianjizhang.ui.theme.IncomeGreen
 import com.example.fangbianjizhang.util.AmountFormatter
@@ -20,6 +28,7 @@ import com.example.fangbianjizhang.util.AmountFormatter
 @Composable
 fun StatisticsScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val expandedIds by viewModel.expandedCategories.collectAsStateWithLifecycle()
 
     if (state.isLoading) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -46,7 +55,7 @@ fun StatisticsScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
                 }
             }
         }
-        item { CategoryRanking(state) }
+        item { CategoryRanking(state, expandedIds, viewModel) }
     }
 }
 
@@ -94,10 +103,16 @@ private fun TypeToggle(showExpense: Boolean, onToggle: () -> Unit) {
 }
 
 @Composable
-private fun CategoryRanking(state: StatisticsUiState) {
+private fun CategoryRanking(
+    state: StatisticsUiState,
+    expandedIds: Set<Long>,
+    viewModel: StatisticsViewModel
+) {
     val total = state.categoryStats.sumOf { it.total }
     Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(14.dp)) {
+        Column(
+            Modifier.padding(14.dp).animateContentSize(spring(stiffness = Spring.StiffnessLow))
+        ) {
             Text("分类排行", style = MaterialTheme.typography.titleSmall)
             Spacer(Modifier.height(10.dp))
             if (state.categoryStats.isEmpty()) {
@@ -105,11 +120,25 @@ private fun CategoryRanking(state: StatisticsUiState) {
             }
             state.categoryStats.forEachIndexed { i, cat ->
                 val pct = if (total > 0) cat.total * 100f / total else 0f
+                val isExpanded = expandedIds.contains(cat.category_id)
                 Row(
-                    Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(6.dp))
+                        .clickable { viewModel.toggleCategoryExpand(cat.category_id) }
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("${i + 1}. ${cat.category_name}", style = MaterialTheme.typography.bodyMedium)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("${i + 1}. ${cat.category_name}", style = MaterialTheme.typography.bodyMedium)
+                        Icon(
+                            if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     Text(
                         "${AmountFormatter.toDisplayWithSymbol(cat.total)}  ${String.format("%.0f%%", pct)}",
                         style = MaterialTheme.typography.titleSmall
@@ -118,6 +147,50 @@ private fun CategoryRanking(state: StatisticsUiState) {
                 LinearProgressIndicator(
                     progress = { (pct / 100f).coerceIn(0f, 1f) },
                     modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp))
+                )
+                if (isExpanded) {
+                    SubCategoryList(cat.category_id, cat.total, viewModel)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SubCategoryList(parentId: Long, parentTotal: Long, viewModel: StatisticsViewModel) {
+    val subCategories by viewModel.getSubCategoryStats(parentId)
+        .collectAsStateWithLifecycle(initialValue = emptyList())
+
+    if (subCategories.isEmpty()) {
+        Text(
+            "  暂无子分类数据",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 24.dp, top = 4.dp, bottom = 4.dp)
+        )
+    } else {
+        Column(Modifier.padding(start = 24.dp, top = 4.dp, bottom = 4.dp)) {
+            subCategories.forEach { sub ->
+                val subPct = if (parentTotal > 0) sub.total * 100f / parentTotal else 0f
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        "${sub.category_icon} ${sub.category_name}",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Text(
+                        "${AmountFormatter.toDisplayWithSymbol(sub.total)}  ${String.format("%.0f%%", subPct)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                LinearProgressIndicator(
+                    progress = { (subPct / 100f).coerceIn(0f, 1f) },
+                    modifier = Modifier.fillMaxWidth().height(3.dp).clip(RoundedCornerShape(1.5.dp)),
+                    color = MaterialTheme.colorScheme.tertiary,
+                    trackColor = MaterialTheme.colorScheme.surfaceContainerLow
                 )
             }
         }
