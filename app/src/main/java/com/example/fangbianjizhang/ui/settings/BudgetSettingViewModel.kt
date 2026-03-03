@@ -42,7 +42,7 @@ class BudgetSettingViewModel @Inject constructor(
             _state.value = _state.value.copy(mode = mode)
 
             val ym = DateUtils.currentYearMonth()
-            val budgets = budgetRepo.getByYearMonth(ym).first()
+            val budgets = budgetRepo.getEffectiveByYearMonth(ym).first()
 
             if (mode == BudgetMode.TOTAL) {
                 val total = budgets.firstOrNull { it.categoryId == null }

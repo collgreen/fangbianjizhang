@@ -31,4 +31,31 @@ interface BudgetDao {
 
     @Query("DELETE FROM budgets WHERE year_month = :yearMonth")
     suspend fun clearByYearMonth(yearMonth: String)
+
+    /** 查找当月或最近一个月的总预算（用于展示，跨月继承） */
+    @Query("SELECT * FROM budgets WHERE category_id IS NULL AND year_month <= :yearMonth ORDER BY year_month DESC LIMIT 1")
+    fun getEffectiveTotalBudget(yearMonth: String): Flow<BudgetEntity?>
+
+    /** 查找当月或最近一个月的分类预算总和（用于展示，跨月继承） */
+    @Query("""
+        SELECT COALESCE(SUM(amount), 0) FROM budgets
+        WHERE category_id IS NOT NULL
+        AND year_month = (
+            SELECT DISTINCT year_month FROM budgets
+            WHERE category_id IS NOT NULL AND year_month <= :yearMonth
+            ORDER BY year_month DESC LIMIT 1
+        )
+    """)
+    fun getEffectiveCategoryBudgetSum(yearMonth: String): Flow<Long>
+
+    /** 查找当月或最近一个月的所有预算记录（用于设置页加载，跨月继承） */
+    @Query("""
+        SELECT * FROM budgets
+        WHERE year_month = (
+            SELECT DISTINCT year_month FROM budgets
+            WHERE year_month <= :yearMonth
+            ORDER BY year_month DESC LIMIT 1
+        )
+    """)
+    fun getEffectiveByYearMonth(yearMonth: String): Flow<List<BudgetEntity>>
 }

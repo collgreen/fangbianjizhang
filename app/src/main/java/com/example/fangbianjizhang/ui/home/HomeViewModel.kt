@@ -131,8 +131,8 @@ class HomeViewModel @Inject constructor(
     private fun budgetFlow(ym: String, start: Long, end: Long): Flow<BudgetStatus> {
         return combine(
             prefs.budgetMode,
-            budgetRepo.getTotalBudget(ym),
-            budgetRepo.getCategoryBudgetSum(ym),
+            budgetRepo.getEffectiveTotalBudget(ym),
+            budgetRepo.getEffectiveCategoryBudgetSum(ym),
             transactionDao.getTotalByType(start, end, "EXPENSE")
         ) { mode, totalBudget, categorySum, spent ->
             when (mode) {

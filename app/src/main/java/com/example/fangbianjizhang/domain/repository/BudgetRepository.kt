@@ -10,4 +10,7 @@ interface BudgetRepository {
     suspend fun setTotalBudget(yearMonth: String, amount: Long)
     suspend fun setCategoryBudget(yearMonth: String, categoryId: Long, amount: Long)
     suspend fun clearByYearMonth(yearMonth: String)
+    fun getEffectiveTotalBudget(yearMonth: String): Flow<Budget?>
+    fun getEffectiveCategoryBudgetSum(yearMonth: String): Flow<Long>
+    fun getEffectiveByYearMonth(yearMonth: String): Flow<List<Budget>>
 }

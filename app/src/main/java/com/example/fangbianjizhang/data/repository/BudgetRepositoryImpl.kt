@@ -44,4 +44,15 @@ class BudgetRepositoryImpl @Inject constructor(
 
     override suspend fun clearByYearMonth(yearMonth: String) =
         dao.clearByYearMonth(yearMonth)
+
+    override fun getEffectiveTotalBudget(yearMonth: String): Flow<Budget?> =
+        dao.getEffectiveTotalBudget(yearMonth).map { it?.let { e -> Budget(e.id, e.categoryId, e.amount, e.yearMonth) } }
+
+    override fun getEffectiveCategoryBudgetSum(yearMonth: String): Flow<Long> =
+        dao.getEffectiveCategoryBudgetSum(yearMonth)
+
+    override fun getEffectiveByYearMonth(yearMonth: String): Flow<List<Budget>> =
+        dao.getEffectiveByYearMonth(yearMonth).map { list ->
+            list.map { Budget(it.id, it.categoryId, it.amount, it.yearMonth) }
+        }
 }

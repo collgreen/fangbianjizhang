@@ -2,13 +2,17 @@ package com.example.fangbianjizhang.data.repository
 
 import android.content.Context
 import android.net.Uri
+import com.example.fangbianjizhang.data.local.datastore.PreferencesManager
 import com.example.fangbianjizhang.data.local.db.dao.*
 import com.example.fangbianjizhang.data.local.db.entity.*
+import com.example.fangbianjizhang.domain.model.BudgetMode
+import com.example.fangbianjizhang.domain.model.ThemeMode
 import com.example.fangbianjizhang.domain.repository.BackupRepository
 import com.example.fangbianjizhang.domain.repository.ImportConflict
 import com.example.fangbianjizhang.domain.repository.ImportSummary
 import com.example.fangbianjizhang.util.AmountFormatter
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.first
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedWriter
@@ -26,7 +30,8 @@ class BackupRepositoryImpl @Inject constructor(
     private val categoryDao: CategoryDao,
     private val transactionDao: TransactionDao,
     private val budgetDao: BudgetDao,
-    private val recurringDao: RecurringDao
+    private val recurringDao: RecurringDao,
+    private val prefs: PreferencesManager
 ) : BackupRepository {
 
     override suspend fun exportJson(outputUri: Uri, password: String?): Result<Unit> =
@@ -92,6 +97,13 @@ class BackupRepositoryImpl @Inject constructor(
         root.put("transactions", transactionsToJson(transactionDao.getAllActiveList()))
         root.put("budgets", budgetsToJson(budgetDao.getAllList()))
         root.put("recurring_templates", recurringToJson(recurringDao.getAllActiveList()))
+        root.put("preferences", JSONObject().apply {
+            put("theme", prefs.theme.first().name)
+            put("currency_symbol", prefs.currencySymbol.first())
+            put("month_start_day", prefs.monthStartDay.first())
+            put("auto_check_update", prefs.autoCheckUpdate.first())
+            put("budget_mode", prefs.budgetMode.first().name)
+        })
         return root.toString(2)
     }
 
@@ -141,6 +153,7 @@ class BackupRepositoryImpl @Inject constructor(
                 put("counterparty", t.counterparty ?: JSONObject.NULL)
                 put("due_date", t.dueDate ?: JSONObject.NULL)
                 put("note", t.note ?: JSONObject.NULL)
+                put("image_uri", t.imageUri ?: JSONObject.NULL)
                 put("transaction_date", t.transactionDate)
                 put("recurring_id", t.recurringId ?: JSONObject.NULL)
                 put("created_at", t.createdAt)
@@ -174,6 +187,7 @@ class BackupRepositoryImpl @Inject constructor(
                 put("source_account_id", r.sourceAccountId)
                 put("target_account_id", r.targetAccountId)
                 put("next_due_date", r.nextDueDate)
+                put("last_executed_at", r.lastExecutedAt ?: JSONObject.NULL)
                 put("is_enabled", r.isEnabled); put("created_at", r.createdAt)
             })
         }
@@ -236,6 +250,7 @@ class BackupRepositoryImpl @Inject constructor(
                 counterparty = o.optStringNull("counterparty"),
                 dueDate = o.optLongNull("due_date"),
                 note = o.optStringNull("note"),
+                imageUri = o.optStringNull("image_uri"),
                 transactionDate = o.getLong("transaction_date"),
                 recurringId = o.optLongNull("recurring_id"),
                 createdAt = now, updatedAt = now
@@ -270,10 +285,30 @@ class BackupRepositoryImpl @Inject constructor(
                 sourceAccountId = acctIdMap[oldSrc] ?: oldSrc,
                 targetAccountId = acctIdMap[oldTgt] ?: oldTgt,
                 nextDueDate = o.getLong("next_due_date"),
+                lastExecutedAt = o.optLongNull("last_executed_at"),
                 isEnabled = o.optBoolean("is_enabled", true),
                 createdAt = now, updatedAt = now
             ))
             recurringCount++
+        }
+
+        val prefsObj = root.optJSONObject("preferences")
+        if (prefsObj != null) {
+            prefsObj.optString("theme", "").takeIf { it.isNotEmpty() }?.let {
+                runCatching { prefs.setTheme(ThemeMode.valueOf(it)) }
+            }
+            prefsObj.optString("currency_symbol", "").takeIf { it.isNotEmpty() }?.let {
+                prefs.setCurrency(it)
+            }
+            if (prefsObj.has("month_start_day")) {
+                prefs.setMonthStartDay(prefsObj.getInt("month_start_day"))
+            }
+            if (prefsObj.has("auto_check_update")) {
+                prefs.setAutoCheckUpdate(prefsObj.getBoolean("auto_check_update"))
+            }
+            prefsObj.optString("budget_mode", "").takeIf { it.isNotEmpty() }?.let {
+                runCatching { prefs.setBudgetMode(BudgetMode.valueOf(it)) }
+            }
         }
 
         return ImportSummary(acctCount, catCount, txnCount, budgetCount, recurringCount)
