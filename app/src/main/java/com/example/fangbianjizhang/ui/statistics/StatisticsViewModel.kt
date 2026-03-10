@@ -4,6 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.fangbianjizhang.data.local.db.dao.CategoryTotal
 import com.example.fangbianjizhang.data.local.db.dao.TransactionDao
+import com.example.fangbianjizhang.data.local.datastore.PreferencesManager
+import com.example.fangbianjizhang.domain.model.BudgetMode
+import com.example.fangbianjizhang.domain.repository.BudgetRepository
 import com.example.fangbianjizhang.util.DateUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -18,13 +21,18 @@ data class StatisticsUiState(
     val totalExpense: Long = 0,
     val categoryStats: List<CategoryTotal> = emptyList(),
     val showExpense: Boolean = true,
+    val budgetMode: BudgetMode = BudgetMode.NONE,
+    val totalBudget: Long = 0,
+    val categoryBudgets: Map<Long, Long> = emptyMap(),
     val isLoading: Boolean = true
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class StatisticsViewModel @Inject constructor(
-    private val transactionDao: TransactionDao
+    private val transactionDao: TransactionDao,
+    private val budgetRepo: BudgetRepository,
+    private val prefs: PreferencesManager
 ) : ViewModel() {
 
     private val _year = MutableStateFlow(LocalDate.now().year)
@@ -39,13 +47,31 @@ class StatisticsViewModel @Inject constructor(
     ) { y, m, exp -> Triple(y, m, exp) }
         .flatMapLatest { (y, m, exp) ->
             val (start, end) = DateUtils.monthRange(y, m)
+            val ym = String.format("%d-%02d", y, m)
             val type = if (exp) "EXPENSE" else "INCOME"
             combine(
                 transactionDao.getTotalByType(start, end, "INCOME"),
                 transactionDao.getTotalByType(start, end, "EXPENSE"),
-                transactionDao.getCategoryStats(start, end, type)
-            ) { income, expense, stats ->
-                StatisticsUiState(y, m, income, expense, stats, exp, false)
+                transactionDao.getCategoryStats(start, end, type),
+                prefs.budgetMode,
+                budgetRepo.getEffectiveTotalBudget(ym),
+                budgetRepo.getEffectiveByYearMonth(ym)
+            ) { income, expense, stats, mode, totalBudget, allBudgets ->
+                val catBudgets = allBudgets
+                    .filter { it.categoryId != null }
+                    .associate { it.categoryId!! to it.amount }
+                StatisticsUiState(
+                    year = y,
+                    month = m,
+                    totalIncome = income,
+                    totalExpense = expense,
+                    categoryStats = stats,
+                    showExpense = exp,
+                    budgetMode = mode,
+                    totalBudget = totalBudget?.amount ?: 0,
+                    categoryBudgets = catBudgets,
+                    isLoading = false
+                )
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), StatisticsUiState())

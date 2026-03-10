@@ -115,6 +115,7 @@ class BackupRepositoryImpl @Inject constructor(
                 put("sub_type", a.subType); put("balance", a.balance)
                 put("total_limit", a.totalLimit ?: JSONObject.NULL)
                 put("used_amount", a.usedAmount ?: JSONObject.NULL)
+                put("installment_amount", a.installmentAmount ?: JSONObject.NULL)
                 put("total_loan", a.totalLoan ?: JSONObject.NULL)
                 put("already_paid", a.alreadyPaid ?: JSONObject.NULL)
                 put("monthly_payment", a.monthlyPayment ?: JSONObject.NULL)
@@ -319,6 +320,7 @@ class BackupRepositoryImpl @Inject constructor(
         subType = o.getString("sub_type"), balance = o.getLong("balance"),
         totalLimit = o.optLongNull("total_limit"),
         usedAmount = o.optLongNull("used_amount"),
+        installmentAmount = o.optLongNull("installment_amount"),
         totalLoan = o.optLongNull("total_loan"),
         alreadyPaid = o.optLongNull("already_paid"),
         monthlyPayment = o.optLongNull("monthly_payment"),

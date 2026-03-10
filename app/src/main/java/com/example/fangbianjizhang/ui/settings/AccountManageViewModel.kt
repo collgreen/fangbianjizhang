@@ -27,13 +27,14 @@ class AccountManageViewModel @Inject constructor(
     fun addAccount(
         name: String, type: AccountType, subType: AccountSubType,
         balance: Long, totalLimit: Long?, totalLoan: Long?,
-        monthlyPayment: Long?, billDay: Int?, repaymentDay: Int?
+        monthlyPayment: Long?, installmentAmount: Long?, billDay: Int?, repaymentDay: Int?
     ) {
         viewModelScope.launch {
             accountRepo.insert(Account(
                 name = name, type = type, subType = subType,
                 balance = balance, totalLimit = totalLimit,
-                usedAmount = 0, totalLoan = totalLoan,
+                usedAmount = 0, installmentAmount = installmentAmount,
+                totalLoan = totalLoan,
                 alreadyPaid = 0, monthlyPayment = monthlyPayment,
                 billDay = billDay, repaymentDay = repaymentDay,
                 icon = subType.defaultIcon()

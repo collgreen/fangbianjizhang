@@ -38,15 +38,16 @@ class UpdateTransactionUseCase @Inject constructor(
             TransactionType.TRANSFER -> {
                 accountRepo.updateBalance(t.accountId, t.amount + t.fee)
                 t.targetAccountId?.let { targetId ->
-                    accountRepo.updateBalance(targetId, -t.amount)
+                    val targetAccount = accountRepo.getById(targetId).first()
+                    when (targetAccount?.type) {
+                        AccountType.CREDIT -> accountRepo.updateUsedAmount(targetId, t.amount)
+                        AccountType.LOAN -> accountRepo.updateAlreadyPaid(targetId, -t.amount)
+                        else -> accountRepo.updateBalance(targetId, -t.amount)
+                    }
                 }
             }
-            TransactionType.LOAN_BORROW -> {
-                accountRepo.updateBalance(t.accountId, -t.amount)
-            }
-            TransactionType.LOAN_LEND -> {
-                accountRepo.updateBalance(t.accountId, t.amount)
-            }
+            TransactionType.LOAN_BORROW -> accountRepo.updateBalance(t.accountId, -t.amount)
+            TransactionType.LOAN_LEND -> accountRepo.updateBalance(t.accountId, t.amount)
         }
     }
 
@@ -69,15 +70,27 @@ class UpdateTransactionUseCase @Inject constructor(
             TransactionType.TRANSFER -> {
                 accountRepo.updateBalance(t.accountId, -t.amount - t.fee)
                 t.targetAccountId?.let { targetId ->
-                    accountRepo.updateBalance(targetId, t.amount)
+                    val targetAccount = accountRepo.getById(targetId).first()
+                    when (targetAccount?.type) {
+                        AccountType.CREDIT -> {
+                            val used = targetAccount.usedAmount ?: 0
+                            val installment = targetAccount.installmentAmount ?: 0
+                            if (used >= t.amount) {
+                                accountRepo.updateUsedAmount(targetId, -t.amount)
+                            } else {
+                                if (used > 0) accountRepo.updateUsedAmount(targetId, -used)
+                                val remaining = t.amount - used
+                                val installDeduct = remaining.coerceAtMost(installment)
+                                if (installDeduct > 0) accountRepo.updateInstallmentAmount(targetId, -installDeduct)
+                            }
+                        }
+                        AccountType.LOAN -> accountRepo.updateAlreadyPaid(targetId, t.amount)
+                        else -> accountRepo.updateBalance(targetId, t.amount)
+                    }
                 }
             }
-            TransactionType.LOAN_BORROW -> {
-                accountRepo.updateBalance(t.accountId, t.amount)
-            }
-            TransactionType.LOAN_LEND -> {
-                accountRepo.updateBalance(t.accountId, -t.amount)
-            }
+            TransactionType.LOAN_BORROW -> accountRepo.updateBalance(t.accountId, t.amount)
+            TransactionType.LOAN_LEND -> accountRepo.updateBalance(t.accountId, -t.amount)
         }
     }
 }

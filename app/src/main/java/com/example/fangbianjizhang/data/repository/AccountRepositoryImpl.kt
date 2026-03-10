@@ -40,6 +40,9 @@ class AccountRepositoryImpl @Inject constructor(
     override suspend fun updateUsedAmount(id: Long, delta: Long) =
         dao.updateUsedAmount(id, delta, System.currentTimeMillis())
 
+    override suspend fun updateInstallmentAmount(id: Long, delta: Long) =
+        dao.updateInstallmentAmount(id, delta, System.currentTimeMillis())
+
     override suspend fun updateAlreadyPaid(id: Long, delta: Long) =
         dao.updateAlreadyPaid(id, delta, System.currentTimeMillis())
 

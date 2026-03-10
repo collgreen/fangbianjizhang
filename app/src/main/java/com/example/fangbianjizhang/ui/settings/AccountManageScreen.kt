@@ -76,8 +76,8 @@ fun AccountManageScreen(
     if (showAddDialog) {
         AccountEditDialog(
             account = null,
-            onConfirm = { name, type, subType, balance, limit, loan, monthly, billDay, repayDay ->
-                viewModel.addAccount(name, type, subType, balance, limit, loan, monthly, billDay, repayDay)
+            onConfirm = { name, type, subType, balance, limit, loan, monthly, installment, billDay, repayDay ->
+                viewModel.addAccount(name, type, subType, balance, limit, loan, monthly, installment, billDay, repayDay)
                 showAddDialog = false
             },
             onDismiss = { showAddDialog = false }
@@ -87,11 +87,12 @@ fun AccountManageScreen(
     editingAccount?.let { acc ->
         AccountEditDialog(
             account = acc,
-            onConfirm = { name, type, subType, balance, limit, loan, monthly, billDay, repayDay ->
+            onConfirm = { name, type, subType, balance, limit, loan, monthly, installment, billDay, repayDay ->
                 viewModel.updateAccount(acc.copy(
                     name = name, type = type, subType = subType,
                     balance = balance, totalLimit = limit, totalLoan = loan,
-                    monthlyPayment = monthly, billDay = billDay, repaymentDay = repayDay
+                    monthlyPayment = monthly, installmentAmount = installment,
+                    billDay = billDay, repaymentDay = repayDay
                 ))
                 editingAccount = null
             },
@@ -133,7 +134,7 @@ private fun AccountItem(account: Account, onEdit: () -> Unit, onDelete: () -> Un
 @Composable
 private fun AccountEditDialog(
     account: Account?,
-    onConfirm: (String, AccountType, AccountSubType, Long, Long?, Long?, Long?, Int?, Int?) -> Unit,
+    onConfirm: (String, AccountType, AccountSubType, Long, Long?, Long?, Long?, Long?, Int?, Int?) -> Unit,
     onDismiss: () -> Unit
 ) {
     var name by remember { mutableStateOf(account?.name ?: "") }
@@ -144,6 +145,7 @@ private fun AccountEditDialog(
     var loanStr by remember { mutableStateOf(account?.totalLoan?.let { AmountFormatter.toDisplay(it) } ?: "") }
     var monthlyStr by remember { mutableStateOf(account?.monthlyPayment?.let { AmountFormatter.toDisplay(it) } ?: "") }
     var billDayStr by remember { mutableStateOf(account?.billDay?.toString() ?: "") }
+    var installmentStr by remember { mutableStateOf(account?.installmentAmount?.let { AmountFormatter.toDisplay(it) } ?: "") }
     var repayDayStr by remember { mutableStateOf(account?.repaymentDay?.toString() ?: "") }
 
     AlertDialog(
@@ -177,6 +179,7 @@ private fun AccountEditDialog(
 
                 if (selectedType == AccountType.CREDIT) {
                     OutlinedTextField(value = limitStr, onValueChange = { limitStr = it }, label = { Text("额度 (元)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = installmentStr, onValueChange = { installmentStr = it }, label = { Text("分期金额 (元)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, modifier = Modifier.fillMaxWidth())
                     OutlinedTextField(value = billDayStr, onValueChange = { billDayStr = it }, label = { Text("账单日") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.fillMaxWidth())
                     OutlinedTextField(value = repayDayStr, onValueChange = { repayDayStr = it }, label = { Text("还款日") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.fillMaxWidth())
                 }
@@ -197,6 +200,7 @@ private fun AccountEditDialog(
                         if (selectedType == AccountType.CREDIT) AmountFormatter.toLong(limitStr.ifBlank { "0" }) else null,
                         if (selectedType == AccountType.LOAN) AmountFormatter.toLong(loanStr.ifBlank { "0" }) else null,
                         if (selectedType == AccountType.LOAN) AmountFormatter.toLong(monthlyStr.ifBlank { "0" }) else null,
+                        if (selectedType == AccountType.CREDIT) AmountFormatter.toLong(installmentStr.ifBlank { "0" }).takeIf { it > 0 } else null,
                         billDayStr.toIntOrNull(),
                         repayDayStr.toIntOrNull()
                     )

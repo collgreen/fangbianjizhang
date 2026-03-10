@@ -6,6 +6,7 @@ import com.example.fangbianjizhang.domain.model.Account
 import com.example.fangbianjizhang.domain.model.AccountType
 import com.example.fangbianjizhang.domain.model.BudgetMode
 import com.example.fangbianjizhang.domain.model.Transaction
+import com.example.fangbianjizhang.domain.usecase.transaction.DeleteTransactionUseCase
 import com.example.fangbianjizhang.domain.repository.AccountRepository
 import com.example.fangbianjizhang.domain.repository.BudgetRepository
 import com.example.fangbianjizhang.domain.repository.DailySummary
@@ -53,6 +54,7 @@ class HomeViewModel @Inject constructor(
     private val budgetRepo: BudgetRepository,
     private val accountRepo: AccountRepository,
     private val transactionDao: TransactionDao,
+    private val deleteTransactionUseCase: DeleteTransactionUseCase,
     private val prefs: PreferencesManager
 ) : ViewModel() {
 
@@ -107,7 +109,7 @@ class HomeViewModel @Inject constructor(
     }
 
     fun deleteTransaction(id: Long) {
-        viewModelScope.launch { transactionRepo.softDelete(id) }
+        viewModelScope.launch { deleteTransactionUseCase(id) }
     }
 
     private fun repaymentFlow(): Flow<List<RepaymentReminder>> {
@@ -121,7 +123,8 @@ class HomeViewModel @Inject constructor(
                     if (it.isBefore(today) || it.isEqual(today)) it.plusMonths(1) else it
                 }
                 val daysLeft = java.time.temporal.ChronoUnit.DAYS.between(today, nextRepay).toInt()
-                val amount = if (acc.type == AccountType.CREDIT) acc.usedAmount ?: 0
+                val amount = if (acc.type == AccountType.CREDIT)
+                    (acc.usedAmount ?: 0) + (acc.installmentAmount ?: 0)
                     else acc.monthlyPayment ?: 0
                 RepaymentReminder(acc.name, repayDay, daysLeft, acc.type == AccountType.CREDIT, amount)
             }.sortedBy { it.daysLeft }

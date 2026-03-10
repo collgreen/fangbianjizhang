@@ -8,6 +8,7 @@ data class Account(
     val balance: Long = 0,
     val totalLimit: Long? = null,
     val usedAmount: Long? = null,
+    val installmentAmount: Long? = null,
     val totalLoan: Long? = null,
     val alreadyPaid: Long? = null,
     val monthlyPayment: Long? = null,

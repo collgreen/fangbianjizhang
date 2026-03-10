@@ -41,14 +41,21 @@ fun TypeTabs(current: TransactionType, onSelect: (TransactionType) -> Unit) {
 
 @Composable
 fun AmountDisplay(amount: String) {
+    val displayText = "¥ ${amount.ifEmpty { "0.00" }}"
+    val fontSize = when {
+        displayText.length > 18 -> 20.sp
+        displayText.length > 14 -> 24.sp
+        else -> 30.sp // headlineLarge default ~30sp
+    }
     Box(
         Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
         contentAlignment = Alignment.CenterEnd
     ) {
         Text(
-            text = "¥ ${amount.ifEmpty { "0.00" }}",
-            style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.Bold
+            text = displayText,
+            fontSize = fontSize,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1
         )
     }
 }

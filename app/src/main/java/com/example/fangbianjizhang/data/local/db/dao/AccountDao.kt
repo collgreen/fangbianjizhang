@@ -36,6 +36,9 @@ interface AccountDao {
     @Query("UPDATE accounts SET already_paid = already_paid + :delta, updated_at = :now WHERE id = :id")
     suspend fun updateAlreadyPaid(id: Long, delta: Long, now: Long)
 
+    @Query("UPDATE accounts SET installment_amount = COALESCE(installment_amount, 0) + :delta, updated_at = :now WHERE id = :id")
+    suspend fun updateInstallmentAmount(id: Long, delta: Long, now: Long)
+
     @Query("SELECT * FROM accounts WHERE is_deleted = 0")
     suspend fun getAllActiveList(): List<AccountEntity>
 
@@ -48,7 +51,7 @@ interface AccountDao {
     @Query("SELECT COALESCE(SUM(balance), 0) FROM accounts WHERE type = 'INVESTMENT' AND is_deleted = 0 AND include_in_total = 1")
     fun getInvestmentTotal(): Flow<Long>
 
-    @Query("SELECT COALESCE(SUM(used_amount), 0) FROM accounts WHERE type = 'CREDIT' AND is_deleted = 0")
+    @Query("SELECT COALESCE(SUM(COALESCE(used_amount, 0) + COALESCE(installment_amount, 0)), 0) FROM accounts WHERE type = 'CREDIT' AND is_deleted = 0")
     fun getCreditUsedTotal(): Flow<Long>
 
     @Query("SELECT COALESCE(SUM(total_loan - already_paid), 0) FROM accounts WHERE type = 'LOAN' AND is_deleted = 0")

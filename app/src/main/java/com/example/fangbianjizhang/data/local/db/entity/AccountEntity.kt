@@ -20,6 +20,7 @@ data class AccountEntity(
     val balance: Long = 0,
     @ColumnInfo(name = "total_limit") val totalLimit: Long? = null,
     @ColumnInfo(name = "used_amount") val usedAmount: Long? = null,
+    @ColumnInfo(name = "installment_amount") val installmentAmount: Long? = null,
     @ColumnInfo(name = "total_loan") val totalLoan: Long? = null,
     @ColumnInfo(name = "already_paid") val alreadyPaid: Long? = null,
     @ColumnInfo(name = "monthly_payment") val monthlyPayment: Long? = null,

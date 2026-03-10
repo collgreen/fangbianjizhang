@@ -15,13 +15,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+private data class PadKey(val label: String, val weight: Float = 1f)
+
 @Composable
 fun NumberPad(vm: RecordViewModel) {
+    // 5列布局：数字3列 + 运算符列 + 操作列
     val keys = listOf(
-        listOf("7", "8", "9", "删"),
-        listOf("4", "5", "6", ""),
-        listOf("1", "2", "3", ""),
-        listOf(".", "0", "", "完")
+        listOf(PadKey("7"), PadKey("8"), PadKey("9"), PadKey("÷"), PadKey("删")),
+        listOf(PadKey("4"), PadKey("5"), PadKey("6"), PadKey("×"), PadKey("=")),
+        listOf(PadKey("1"), PadKey("2"), PadKey("3"), PadKey("-"), PadKey(".")),
+        listOf(PadKey("0", weight = 3f), PadKey("+"), PadKey("完"))
     )
 
     Column(
@@ -33,35 +36,35 @@ fun NumberPad(vm: RecordViewModel) {
         keys.forEach { row ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 row.forEach { key ->
-                    val isAction = key == "删" || key == "完"
+                    val isAction = key.label in listOf("删", "完", "+", "-", "×", "÷", "=")
                     val bg = when {
-                        key == "完" -> MaterialTheme.colorScheme.primary
+                        key.label == "完" -> MaterialTheme.colorScheme.primary
                         isAction -> MaterialTheme.colorScheme.surfaceContainer
-                        key.isNotEmpty() -> MaterialTheme.colorScheme.surface
-                        else -> MaterialTheme.colorScheme.surfaceContainerLow
+                        else -> MaterialTheme.colorScheme.surface
                     }
                     val textColor = when {
-                        key == "完" -> MaterialTheme.colorScheme.onPrimary
+                        key.label == "完" -> MaterialTheme.colorScheme.onPrimary
                         else -> MaterialTheme.colorScheme.onSurface
                     }
                     Box(
                         Modifier
-                            .weight(1f)
+                            .weight(key.weight)
                             .height(52.dp)
                             .padding(vertical = 2.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .background(bg)
-                            .clickable(enabled = key.isNotEmpty()) {
-                                when (key) {
+                            .clickable {
+                                when (key.label) {
                                     "删" -> vm.deleteDigit()
                                     "完" -> vm.save()
-                                    else -> vm.appendDigit(key)
+                                    "=" -> vm.calculate()
+                                    else -> vm.appendDigit(key.label)
                                 }
                             },
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = key,
+                            text = key.label,
                             fontSize = if (isAction) 16.sp else 20.sp,
                             fontWeight = if (isAction) FontWeight.Medium else FontWeight.Normal,
                             color = textColor,

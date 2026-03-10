@@ -22,6 +22,7 @@ interface AccountRepository {
     suspend fun softDelete(id: Long)
     suspend fun updateBalance(id: Long, delta: Long)
     suspend fun updateUsedAmount(id: Long, delta: Long)
+    suspend fun updateInstallmentAmount(id: Long, delta: Long)
     suspend fun updateAlreadyPaid(id: Long, delta: Long)
     fun getNetAsset(): Flow<NetAsset>
 }

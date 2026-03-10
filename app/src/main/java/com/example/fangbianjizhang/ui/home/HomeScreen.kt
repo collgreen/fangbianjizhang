@@ -3,8 +3,10 @@ package com.example.fangbianjizhang.ui.home
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -61,12 +63,24 @@ fun HomeScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val motto = remember { mottoList.random() }
+    var deleteTarget by remember { mutableStateOf<Transaction?>(null) }
 
     if (state.isLoading) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
         }
         return
+    }
+
+    deleteTarget?.let { tx ->
+        DeleteConfirmDialog(
+            tx = tx,
+            onConfirm = {
+                viewModel.deleteTransaction(tx.id)
+                deleteTarget = null
+            },
+            onDismiss = { deleteTarget = null }
+        )
     }
 
     LazyColumn(
@@ -92,7 +106,11 @@ fun HomeScreen(
                     Column {
                         DayHeader(summary)
                         summary.transactions.forEach { tx ->
-                            TransactionItem(tx) { onEditTransaction(tx.id) }
+                            TransactionItem(
+                                tx = tx,
+                                onClick = { onEditTransaction(tx.id) },
+                                onLongClick = { deleteTarget = tx }
+                            )
                         }
                     }
                 }
@@ -278,8 +296,9 @@ private fun RepaymentSection(reminders: List<RepaymentReminder>) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun TransactionItem(tx: Transaction, onClick: () -> Unit) {
+private fun TransactionItem(tx: Transaction, onClick: () -> Unit, onLongClick: () -> Unit) {
     val isExpense = tx.type == TransactionType.EXPENSE
     val color = if (isExpense) ExpenseRed else IncomeGreen
     val sign = if (isExpense) "-" else "+"
@@ -289,7 +308,7 @@ private fun TransactionItem(tx: Transaction, onClick: () -> Unit) {
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(6.dp))
-            .clickable(onClick = onClick)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(horizontal = 14.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -307,5 +326,32 @@ private fun TransactionItem(tx: Transaction, onClick: () -> Unit) {
             style = MaterialTheme.typography.titleSmall
         )
     }
+}
+
+@Composable
+private fun DeleteConfirmDialog(
+    tx: Transaction,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val isExpense = tx.type == TransactionType.EXPENSE
+    val sign = if (isExpense) "-" else "+"
+    val typeName = tx.categoryName ?: tx.type.label
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("删除记录") },
+        text = {
+            Text("确定删除这笔记录吗？\n\n$typeName  $sign${AmountFormatter.toDisplayWithSymbol(tx.amount)}\n\n删除后账户余额将自动回退。")
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("删除", color = ExpenseRed)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        }
+    )
 }
 

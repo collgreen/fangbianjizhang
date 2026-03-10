@@ -37,7 +37,12 @@ class InsertTransactionUseCase @Inject constructor(
             TransactionType.TRANSFER -> {
                 accountRepo.updateBalance(t.accountId, -t.amount - t.fee)
                 t.targetAccountId?.let { targetId ->
-                    accountRepo.updateBalance(targetId, t.amount)
+                    val targetAccount = accountRepo.getById(targetId).first()
+                    when (targetAccount?.type) {
+                        AccountType.CREDIT -> applyCreditRepayment(targetAccount, t.amount)
+                        AccountType.LOAN -> accountRepo.updateAlreadyPaid(targetId, t.amount)
+                        else -> accountRepo.updateBalance(targetId, t.amount)
+                    }
                 }
             }
             TransactionType.LOAN_BORROW -> {
@@ -46,6 +51,20 @@ class InsertTransactionUseCase @Inject constructor(
             TransactionType.LOAN_LEND -> {
                 accountRepo.updateBalance(t.accountId, -t.amount)
             }
+        }
+    }
+
+    /** 信用卡还款：优先还次月账单，剩余还分期 */
+    private suspend fun applyCreditRepayment(account: Account, amount: Long) {
+        val usedAmount = account.usedAmount ?: 0
+        val installmentAmount = account.installmentAmount ?: 0
+        if (usedAmount >= amount) {
+            accountRepo.updateUsedAmount(account.id, -amount)
+        } else {
+            if (usedAmount > 0) accountRepo.updateUsedAmount(account.id, -usedAmount)
+            val remaining = amount - usedAmount
+            val installDeduct = remaining.coerceAtMost(installmentAmount)
+            if (installDeduct > 0) accountRepo.updateInstallmentAmount(account.id, -installDeduct)
         }
     }
 }

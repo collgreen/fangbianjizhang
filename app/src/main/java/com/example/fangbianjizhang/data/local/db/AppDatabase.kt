@@ -2,6 +2,7 @@ package com.example.fangbianjizhang.data.local.db
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.fangbianjizhang.data.local.db.dao.AccountDao
 import com.example.fangbianjizhang.data.local.db.dao.BudgetDao
@@ -22,7 +23,7 @@ import com.example.fangbianjizhang.data.local.db.entity.TransactionEntity
         BudgetEntity::class,
         RecurringEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -34,5 +35,11 @@ abstract class AppDatabase : RoomDatabase() {
 
     companion object {
         const val DB_NAME = "fangbianjizhang.db"
+
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE accounts ADD COLUMN installment_amount INTEGER DEFAULT NULL")
+            }
+        }
     }
 }

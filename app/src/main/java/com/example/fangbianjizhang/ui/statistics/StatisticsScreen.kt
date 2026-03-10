@@ -3,6 +3,7 @@ package com.example.fangbianjizhang.ui.statistics
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -21,8 +22,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.fangbianjizhang.data.local.db.dao.CategoryTotal
+import com.example.fangbianjizhang.domain.model.BudgetMode
 import com.example.fangbianjizhang.ui.theme.ExpenseRed
 import com.example.fangbianjizhang.ui.theme.IncomeGreen
+import com.example.fangbianjizhang.ui.theme.WarningOrange
 import com.example.fangbianjizhang.util.AmountFormatter
 
 @Composable
@@ -109,11 +112,18 @@ private fun CategoryRanking(
     viewModel: StatisticsViewModel
 ) {
     val total = state.categoryStats.sumOf { it.total }
+    val hasBudget = state.showExpense && state.budgetMode != BudgetMode.NONE && state.totalBudget > 0
     Card(Modifier.fillMaxWidth()) {
         Column(
             Modifier.padding(14.dp).animateContentSize(spring(stiffness = Spring.StiffnessLow))
         ) {
             Text("分类排行", style = MaterialTheme.typography.titleSmall)
+
+            if (hasBudget) {
+                Spacer(Modifier.height(8.dp))
+                BudgetOverview(totalBudget = state.totalBudget, totalSpent = state.totalExpense)
+            }
+
             Spacer(Modifier.height(10.dp))
             if (state.categoryStats.isEmpty()) {
                 Text("暂无数据", style = MaterialTheme.typography.bodySmall)
@@ -121,6 +131,8 @@ private fun CategoryRanking(
             state.categoryStats.forEachIndexed { i, cat ->
                 val pct = if (total > 0) cat.total * 100f / total else 0f
                 val isExpanded = expandedIds.contains(cat.category_id)
+                val catBudget = if (state.showExpense && state.budgetMode == BudgetMode.PER_CATEGORY)
+                    state.categoryBudgets[cat.category_id] else null
                 Row(
                     Modifier
                         .fillMaxWidth()
@@ -148,11 +160,83 @@ private fun CategoryRanking(
                     progress = { (pct / 100f).coerceIn(0f, 1f) },
                     modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp))
                 )
+                if (catBudget != null && catBudget > 0) {
+                    CategoryBudgetRow(spent = cat.total, budget = catBudget)
+                }
                 if (isExpanded) {
                     SubCategoryList(cat.category_id, cat.total, viewModel)
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun BudgetOverview(totalBudget: Long, totalSpent: Long) {
+    val remaining = totalBudget - totalSpent
+    val ratio = totalSpent.toFloat() / totalBudget
+    val progressColor = when {
+        ratio > 1f -> ExpenseRed
+        ratio > 0.8f -> WarningOrange
+        else -> MaterialTheme.colorScheme.primary
+    }
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .padding(12.dp)
+    ) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("总预算", style = MaterialTheme.typography.labelMedium)
+            Text(AmountFormatter.toDisplayWithSymbol(totalBudget), style = MaterialTheme.typography.labelMedium)
+        }
+        Spacer(Modifier.height(6.dp))
+        LinearProgressIndicator(
+            progress = { ratio.coerceIn(0f, 1f) },
+            modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+            color = progressColor,
+            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+        )
+        Spacer(Modifier.height(4.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(
+                "已用 ${AmountFormatter.toDisplayWithSymbol(totalSpent)}",
+                style = MaterialTheme.typography.bodySmall
+            )
+            Text(
+                if (remaining >= 0) "剩余 ${AmountFormatter.toDisplayWithSymbol(remaining)}"
+                else "超支 ${AmountFormatter.toDisplayWithSymbol(-remaining)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = if (remaining >= 0) MaterialTheme.colorScheme.primary else ExpenseRed
+            )
+        }
+    }
+}
+
+@Composable
+private fun CategoryBudgetRow(spent: Long, budget: Long) {
+    val remaining = budget - spent
+    val ratio = spent.toFloat() / budget
+    Row(
+        Modifier.fillMaxWidth().padding(start = 4.dp, top = 2.dp, bottom = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            "预算 ${AmountFormatter.toDisplayWithSymbol(budget)}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            if (remaining >= 0) "剩余 ${AmountFormatter.toDisplayWithSymbol(remaining)}"
+            else "超支 ${AmountFormatter.toDisplayWithSymbol(-remaining)}",
+            style = MaterialTheme.typography.bodySmall,
+            color = when {
+                ratio > 1f -> ExpenseRed
+                ratio > 0.8f -> WarningOrange
+                else -> MaterialTheme.colorScheme.primary
+            }
+        )
     }
 }
 

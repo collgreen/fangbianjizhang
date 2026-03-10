@@ -141,7 +141,9 @@ private fun FundAccountItem(account: Account, onClick: () -> Unit) {
 @Composable
 private fun CreditAccountItem(account: Account, onClick: () -> Unit) {
     val used = account.usedAmount ?: 0
-    val available = (account.totalLimit ?: 0) - used
+    val installment = account.installmentAmount ?: 0
+    val totalDebt = used + installment
+    val available = (account.totalLimit ?: 0) - totalDebt
     Column(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 10.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -149,8 +151,25 @@ private fun CreditAccountItem(account: Account, onClick: () -> Unit) {
                 Text(account.name, style = MaterialTheme.typography.bodyLarge)
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text("已用 ${AmountFormatter.toDisplayWithSymbol(used)}", style = MaterialTheme.typography.titleSmall, color = ExpenseRed)
+                Text("待还 ${AmountFormatter.toDisplayWithSymbol(totalDebt)}", style = MaterialTheme.typography.titleSmall, color = ExpenseRed)
                 Text("可用 ${AmountFormatter.toDisplayWithSymbol(available)}", style = MaterialTheme.typography.bodySmall)
+            }
+        }
+        Row(
+            Modifier.fillMaxWidth().padding(start = 28.dp, top = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                "次月还款 ${AmountFormatter.toDisplayWithSymbol(used)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (installment > 0) {
+                Text(
+                    "分期 ${AmountFormatter.toDisplayWithSymbol(installment)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
         if (account.billDay != null && account.repaymentDay != null) {
