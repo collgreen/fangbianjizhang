@@ -49,14 +49,17 @@ class StatisticsViewModel @Inject constructor(
             val (start, end) = DateUtils.monthRange(y, m)
             val ym = String.format("%d-%02d", y, m)
             val type = if (exp) "EXPENSE" else "INCOME"
-            combine(
+            val dataFlow = combine(
                 transactionDao.getTotalByType(start, end, "INCOME"),
                 transactionDao.getTotalByType(start, end, "EXPENSE"),
-                transactionDao.getCategoryStats(start, end, type),
+                transactionDao.getCategoryStats(start, end, type)
+            ) { income, expense, stats -> Triple(income, expense, stats) }
+            val budgetFlow = combine(
                 prefs.budgetMode,
                 budgetRepo.getEffectiveTotalBudget(ym),
                 budgetRepo.getEffectiveByYearMonth(ym)
-            ) { income, expense, stats, mode, totalBudget, allBudgets ->
+            ) { mode, totalBudget, allBudgets -> Triple(mode, totalBudget, allBudgets) }
+            combine(dataFlow, budgetFlow) { (income, expense, stats), (mode, totalBudget, allBudgets) ->
                 val catBudgets = allBudgets
                     .filter { it.categoryId != null }
                     .associate { it.categoryId!! to it.amount }
